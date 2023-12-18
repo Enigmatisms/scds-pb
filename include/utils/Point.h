@@ -5,6 +5,12 @@
 
 namespace scds {
 
+#define POINT_TYPE_DEF(ndim) \
+    using Point##ndim##f = Point<float, ndim>;  \
+    using Point##ndim##d = Point<double, ndim>; \
+    using Point##ndim##i = Point<int, ndim>;    \
+    using Point##ndim##u = Point<unsigned int, ndim>;
+
 /**
  * Operator definer
 */
@@ -132,10 +138,17 @@ public:
     }
 
     constexpr Ty sum() const {
-        Ty sum = 0;
+        Ty sum{0};
         for (size_t i = 0; i < Ndim; i++)
             sum += _data[i];
         return sum;
+    }
+
+    constexpr Ty prod() const {
+        Ty prod{1};
+        for (size_t i = 0; i < Ndim; i++)
+            prod *= _data[i];
+        return prod;
     }
 
     constexpr Ty length2() const {
@@ -220,6 +233,13 @@ private:
     Ty _data[Ndim];
 };
 
+template<typename T>
+using Point2 = Point<T, 2>;
+template<typename T>
+using Point3 = Point<T, 3>;
+template<typename T>
+using Point4 = Point<T, 4>;
+
 /**
  * Directly using std::enable_if_t<std::is_arithmetic_v<T>> might fail. Compiler might not be able to
  * deduct type T due to SFINAE (make type deduction more difficult)
@@ -239,6 +259,10 @@ POINT_UNARY_OPERATOR_INVERSE(-)
 POINT_UNARY_OPERATOR_INVERSE(*)
 POINT_UNARY_OPERATOR_INVERSE(/)
 
+POINT_TYPE_DEF(2)
+POINT_TYPE_DEF(3)
+POINT_TYPE_DEF(4)
+
 #undef POINT_ASSESS_OVERLOAD
 #undef POINT_BINARY_OPERATOR_OVERLOAD
 #undef POINT_BINARY_INPLACE_OVERLOAD
@@ -247,5 +271,8 @@ POINT_UNARY_OPERATOR_INVERSE(/)
 #undef POINT_UNARY_OPERATOR_INVERSE
 #undef POINT_REDUCE_OPERATOR_OVERLOAD
 #undef POINT_ANY_OPERATOR_OVERLOAD
+#undef POINT_TYPE_DEF
+
+
 
 }   // end of namespace scds  

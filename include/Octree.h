@@ -4,15 +4,17 @@
  * @author: Qianyue He
  * @date:   2023-12-14
 */
-#include "tree.h"
+#include "Tree.h"
 
 namespace scds {
 
 /**
  * static octree for static scenes
 */
-class StaticOctree: public TreeBase {
 
+template <typename T>
+class StaticOctree: public TreeBase<T> {
+    
 };
 
 }       // end namespace scds

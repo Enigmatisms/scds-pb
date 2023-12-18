@@ -4,8 +4,11 @@
  * 
 */
 
+#include "utils/Point.h"
+
 namespace scds {
 
+template<typename T>
 class TreeBase {
 public:
     TreeBase();
