@@ -56,7 +56,7 @@ Point& operator operatorType##= (T&& val) { \
     return *this; \
 }
 
-#define POINT_REDUCE_OPERATOR_OVERLOAD(operatorType, Ty, Ndim) \
+#define POINT_STD_REDUCE_OPERATOR_OVERLOAD(operatorType, Ty, Ndim) \
 constexpr Ty operatorType () const { \
     Ty ret = _data[0]; \
     for (size_t i = 1; i < Ndim; i++) \
@@ -64,11 +64,19 @@ constexpr Ty operatorType () const { \
     return ret; \
 }
 
+#define POINT_REDUCE_OPERATOR_OVERLOAD(function, operatorType, Ty, Ndim, init_val) \
+constexpr Ty function () const { \
+    Ty ret = init_val; \
+    for (size_t i = 0; i < Ndim; i++) \
+        ret operatorType##= _data[i]; \
+    return ret; \
+}
+
 // Declaring this function as constexpr is useless in C++17, since the rules for constexpr are too restrictive
 // We can not have more than one return position in the function
 #define POINT_ANY_OPERATOR_OVERLOAD(operatorType, Ty, Ndim) \
 bool any_##operatorType () const { \
-    for (size_t i = 1; i < Ndim; i++) { \
+    for (size_t i = 0; i < Ndim; i++) { \
         bool flag = std::is##operatorType(_data[i]); \
         if (flag) return true; \
     } \
@@ -83,6 +91,28 @@ constexpr Ty& dimensionName() {\
 constexpr const Ty& dimensionName() const {\
     static_assert(Ndim >= (index + 1), "Invalid dimension for " #dimensionName "()");\
     return _data[index];\
+}
+
+#define POINT_BINARY_COMPARE_OVERLOAD(operatorType, Ty, Ndim) \
+template <typename PointType, typename = std::enable_if_t<!std::is_arithmetic_v<PointType>, int>> \
+constexpr Point<bool, Ndim> operator operatorType (PointType&& pt) const { \
+    static_assert(std::is_same_v<std::decay_t<PointType>, Point<std::decay_t<decltype(pt._data[0])>, Ndim>>, \
+                      "PointType must have the same Ndim as the current instance."); \
+    Point<bool, Ndim> res{}; \
+    for (size_t i = 0; i < Ndim; i++) { \
+        res[i] = _data[i] operatorType static_cast<Ty>(pt[i]); \
+    } \
+    return res; \
+}
+
+#define POINT_UNARY_COMPARE_OVERLOAD(operatorType, Ty, Ndim) \
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0> \
+constexpr Point<bool, Ndim> operator operatorType (T&& val) const { \
+    Point<bool, Ndim> res{}; \
+    for (size_t i = 0; i < Ndim; i++) { \
+        res[i] = _data[i] operatorType static_cast<Ty>(val); \
+    } \
+    return res; \
 }
 
 /**
@@ -120,13 +150,29 @@ public:
     POINT_UNARY_INPLACE_OVERLOAD(*, Ty, Ndim)
     POINT_UNARY_INPLACE_OVERLOAD(/, Ty, Ndim)
 
+    POINT_BINARY_COMPARE_OVERLOAD(>,  Ty, Ndim)
+    POINT_BINARY_COMPARE_OVERLOAD(>=, Ty, Ndim)
+    POINT_BINARY_COMPARE_OVERLOAD(<,  Ty, Ndim)
+    POINT_BINARY_COMPARE_OVERLOAD(<=, Ty, Ndim)
+
+    POINT_UNARY_COMPARE_OVERLOAD(>,   Ty, Ndim)
+    POINT_UNARY_COMPARE_OVERLOAD(>=,  Ty, Ndim)
+    POINT_UNARY_COMPARE_OVERLOAD(<,   Ty, Ndim)
+    POINT_UNARY_COMPARE_OVERLOAD(<=,  Ty, Ndim)
+
     POINT_ACCESS_OVERLOAD(x, 0)
     POINT_ACCESS_OVERLOAD(y, 1)
     POINT_ACCESS_OVERLOAD(z, 2)
     POINT_ACCESS_OVERLOAD(w, 3)
 
-    POINT_REDUCE_OPERATOR_OVERLOAD(max, Ty, Ndim)
-    POINT_REDUCE_OPERATOR_OVERLOAD(min, Ty, Ndim)
+    POINT_STD_REDUCE_OPERATOR_OVERLOAD(max, Ty, Ndim)
+    POINT_STD_REDUCE_OPERATOR_OVERLOAD(min, Ty, Ndim)
+
+    POINT_REDUCE_OPERATOR_OVERLOAD(sum,  +, Ty, Ndim, 0)
+    POINT_REDUCE_OPERATOR_OVERLOAD(prod, *, Ty, Ndim, 1)
+    POINT_REDUCE_OPERATOR_OVERLOAD(any,  |, Ty, Ndim, false)
+    POINT_REDUCE_OPERATOR_OVERLOAD(all,  &, Ty, Ndim, true)
+
     POINT_ANY_OPERATOR_OVERLOAD(inf, Ty, Ndim)
     POINT_ANY_OPERATOR_OVERLOAD(nan, Ty, Ndim)
 
@@ -137,25 +183,18 @@ public:
         return ((*this) * pt).sum();
     }
 
-    constexpr Ty sum() const {
-        Ty sum{0};
-        for (size_t i = 0; i < Ndim; i++)
-            sum += _data[i];
-        return sum;
-    }
-
-    constexpr Ty prod() const {
-        Ty prod{1};
-        for (size_t i = 0; i < Ndim; i++)
-            prod *= _data[i];
-        return prod;
-    }
-
     constexpr Ty length2() const {
         Ty sum = 0;
         for (size_t i = 0; i < Ndim; i++)
             sum += _data[i] * _data[i];
         return sum;
+    }
+
+    constexpr Point abs() const {
+        Point<Ty, Ndim> res{};
+        for (size_t i = 0; i < Ndim; i++)
+            res[i] = std::abs(this->_data[i]);
+        return res;
     }
 
     constexpr Ty length() const {
@@ -269,10 +308,11 @@ POINT_TYPE_DEF(4)
 #undef POINT_UNARY_OPERATOR_OVERLOAD
 #undef POINT_UNARY_INPLACE_OVERLOAD
 #undef POINT_UNARY_OPERATOR_INVERSE
+#undef POINT_STD_REDUCE_OPERATOR_OVERLOAD
 #undef POINT_REDUCE_OPERATOR_OVERLOAD
 #undef POINT_ANY_OPERATOR_OVERLOAD
+#undef POINT_BINARY_COMPARE_OVERLOAD
+#undef POINT_UNARY_COMPARE_OVERLOAD
 #undef POINT_TYPE_DEF
-
-
 
 }   // end of namespace scds  
