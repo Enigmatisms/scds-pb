@@ -1,3 +1,4 @@
+#pragma once
 #include <array>
 #include <vector>
 #include <memory>
@@ -5,9 +6,22 @@
 #include "Point.h"
 namespace scds {
 
-template<typename T, size_t Ndim, size_t Nchild>
+/**
+ * Notes from PBR-book (4.4 Kd-Tree): about (1) save memory (2) continous memory block can improve cache performance
+ * > Rather than storing two pointers or offsets, we lay the nodes out in a way that lets us only store one child pointer:
+ * all of the nodes are allocated in a single contiguous block of memory, and the child of an interior node that is
+ * responsible for space below the splitting plane is always stored in the array position immediately after its parent
+ * (this layout also improves cache performance, by keeping at least one child close to its parent in memory)
+ * 
+ * I did this before, for BVH tree (linearize the tree, since they are binary, easy to derive)
+ * I suspect that here we can do the same optimization, but I will stick to the simpler version first
+ * Then I might go back and try to improve this
+*/
+
+template<typename Ty, size_t Ndim, size_t Nchild>
 class TreeNode {
-using Pointx = Point<T, Ndim>;
+using Pointx = Point<Ty, Ndim>;
+using This   = TreeNode<Ty, Ndim, Nchild>;
 public:
     TreeNode(
         const Pointx& tl, const Pointx& br, 
@@ -15,14 +29,16 @@ public:
         std::shared_ptr<TreeNode> parent, 
         std::shared_ptr<std::vector<Pointx>> pts_ptr
     );
-
-    TreeNode(
-        const Pointx& center, const Pointx& size, 
-        std::unordered_set<size_t>&& idxs,
-        std::shared_ptr<TreeNode> parent, 
-        std::shared_ptr<std::vector<Pointx>> pts_ptr
-    );
 public:
+    /// You need to consider both the following situation: (1) the tree structure is not yet built (2) insert in an existing node
+    // Add a batch of point indices (to form a child tree)
+    auto add_child(std::unordered_set<size_t>&& pt_idxs, size_t depth, size_t max_depth = 0);
+
+    // Add one point index (to form a child tree)
+
+    template<typename T>
+    auto insert(T&& pt, size_t max_depth = 0);
+
     bool point_in_range(const Pointx& pt) const {
         auto diff = (center - pt).abs();
         return ((size - diff) > 0).all();
@@ -32,7 +48,7 @@ public:
         return sub_idxs.count(idx);
     }
 
-    bool remove(size_t idx) const {
+    bool remove(size_t idx) {
         auto it = sub_idxs.find(idx);
         if (it != sub_idxs.end()) {
             sub_idxs.erase(it);
@@ -41,11 +57,11 @@ public:
         return false;                   // not removed since the target does not exist
     }
 
-    auto get_parent() const {
+    std::shared_ptr<TreeNode> get_parent() const {
         if (auto ptr = parent.lock())
             return ptr;
         else
-            return nullptr;
+            return {};
     }
 protected:
     // pointer to the parent node
@@ -71,14 +87,11 @@ protected:
     // question is: where should we store the nodes and how to recursive free the tree 
 };
 
-// node for KD-tree
-template<typename T, size_t Ndim>
-using KdNode = TreeNode<T, Ndim, 2>;        
 template<typename T>
 // node for Quad-Tree
 using QdNode = TreeNode<T, 2, 4>;
 // node for Octree
 template<typename T>
-using OcNode = TreeNode<T, 3, 8>;
+using OcNode = TreeNode<T, 3, 8>; 
 
 } // end namespace scds

@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstring>
 #include <numeric>
+#include <iostream>
 #include <type_traits>
 
 namespace scds {
@@ -297,6 +298,15 @@ template<typename T>
 using Point3 = Point<T, 3>;
 template<typename T>
 using Point4 = Point<T, 4>;
+
+template <typename T>
+struct __is_point_type : std::false_type {};
+template <typename Ty, std::size_t Ndim>
+struct __is_point_type<Point<Ty, Ndim>> : std::true_type {};
+
+// For point type checking, will be true if T is of type Point<Ty, Ndim>
+#define ASSERT_POINT_TYPE(T) \
+    static_assert(__is_point_type<std::decay_t<T>>::value, "Input type '"#T"'is not a Point type.")
 
 /**
  * Directly using std::enable_if_t<std::is_arithmetic_v<T>> might fail. Compiler might not be able to

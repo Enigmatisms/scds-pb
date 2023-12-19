@@ -1,13 +1,13 @@
 #include <iostream>
 #include "utils/Point.h"
+#include "utils/utils.h"
 
-#define PRINT_OPS(ops) \
-    std::cout << #ops << ":\t\t" << ops << std::endl;
+using namespace scds;
 
 int main()
 {   
-    scds::Point3f p1{1, 2, 3};
-    scds::Point3f p2{2, 2, 4};
+    Point3f p1{1, 2, 3};
+    Point3f p2{2, 2, 4};
     std::cout << "Floating point test:\n";
     PRINT_OPS(p1)
     PRINT_OPS(p2)
@@ -37,8 +37,8 @@ int main()
 
     std::cout << "Integral and constexpr test:\n";
 
-    constexpr scds::Point3i p4{1, 2, 3};
-    constexpr scds::Point3i p5{-1, -2, -3};
+    constexpr Point3i p4{1, 2, 3};
+    constexpr Point3i p5{-1, -2, -3};
     PRINT_OPS(p4 + p5);
     PRINT_OPS(p4 * p5);
     PRINT_OPS(p4.length2());
