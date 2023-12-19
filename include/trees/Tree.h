@@ -13,8 +13,10 @@ class TreeBase {
 public:
     TreeBase();
 public:
-    virtual void insert();
-    virtual void tree_builder();
+    template <typename PointType>
+    virtual void insert(PointType&& pt) = 0;
+
+    virtual void tree_builder() = 0;
 };
 
 }   // end of namespace scds

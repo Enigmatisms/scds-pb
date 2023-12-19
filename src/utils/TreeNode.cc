@@ -12,13 +12,6 @@ TreeNode<Ty, Ndim, Nchild>::TreeNode(
     
 }
 
-template<typename Ty, size_t Ndim, size_t Nchild>
-template<typename T>
-auto TreeNode<Ty, Ndim, Nchild>::insert(T&& pt, size_t max_depth) {
-    ASSERT_POINT_TYPE(T);
-    return 0;
-}
-
 template class TreeNode<float, 2, 4>;               // 2D Quad-tree
 template class TreeNode<float, 3, 8>;               // 3D Octree
 template class TreeNode<double, 2, 4>;              // 2D Quad-tree

@@ -36,8 +36,9 @@ public:
 
     // Add one point index (to form a child tree)
 
-    template<typename T>
-    auto insert(T&& pt, size_t max_depth = 0);
+    void insert(size_t index) {
+        sub_idxs.emplace(index);
+    }
 
     bool point_in_range(const Pointx& pt) const {
         auto diff = (center - pt).abs();

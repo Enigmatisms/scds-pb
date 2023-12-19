@@ -29,7 +29,8 @@ public:
     // full build
     StaticQuadTree(const PointVec<T>& points, int max_depth = 0);
 public:
-
+    template <typename PointType>
+    virtual void insert(PointType&& pt, size_t max_depth = 0);
 protected:
     Point2<T> tl_pt;
     Point2<T> br_pt;
