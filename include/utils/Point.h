@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <cstring>
 #include <numeric>
 #include <type_traits>
@@ -115,6 +116,15 @@ constexpr Point<bool, Ndim> operator operatorType (T&& val) const { \
     return res; \
 }
 
+#define POINT_TYPE_CONVERT_OVERLOAD(typeName, type, Ndim) \
+constexpr Point<type, Ndim> to_##typeName() const { \
+    Point<type, Ndim> res{}; \
+    for (size_t i = 0; i < Ndim; i++) { \
+        res[i] = static_cast<type>(this->_data[i]); \
+    } \
+    return res; \
+}
+
 /**
  * 2D-4D points
 */
@@ -165,6 +175,16 @@ public:
     POINT_ACCESS_OVERLOAD(z, 2)
     POINT_ACCESS_OVERLOAD(w, 3)
 
+    POINT_TYPE_CONVERT_OVERLOAD(int,    int,        Ndim)
+    POINT_TYPE_CONVERT_OVERLOAD(bool,   bool,       Ndim)
+    POINT_TYPE_CONVERT_OVERLOAD(float,  float,      Ndim)
+    POINT_TYPE_CONVERT_OVERLOAD(short,  short,      Ndim)
+    POINT_TYPE_CONVERT_OVERLOAD(double, double,     Ndim)
+    POINT_TYPE_CONVERT_OVERLOAD(i64,    long,       Ndim)
+    POINT_TYPE_CONVERT_OVERLOAD(u64,    uint64_t,   Ndim)
+    POINT_TYPE_CONVERT_OVERLOAD(u32,    uint32_t,   Ndim)
+    POINT_TYPE_CONVERT_OVERLOAD(u16,    unsigned short, Ndim)
+
     POINT_STD_REDUCE_OPERATOR_OVERLOAD(max, Ty, Ndim)
     POINT_STD_REDUCE_OPERATOR_OVERLOAD(min, Ty, Ndim)
 
@@ -206,9 +226,8 @@ public:
         return *this;
     }
 
-    constexpr Point& normalized() const {
-        Ty len = this->length();
-        return (*this) / len;
+    constexpr Point normalized() const {
+        return (*this) / this->length();
     }
 
     friend constexpr std::ostream& operator<<(std::ostream& os, const Point<Ty, Ndim>& point) {
@@ -225,14 +244,14 @@ public:
 
     // =========== expand dimension by one (homogeneous coordinates) ==========
     template<typename PointType>
-    constexpr void assign(PointType&& pt) {
+    void assign(PointType&& pt) {
         constexpr size_t incoming_ndim = std::min(pt.ndim(), Ndim);
         for (size_t i = 0; i < incoming_ndim; ++i) {
             _data[i] = pt[i];
         }
     }
 
-    constexpr auto expand(Ty val) const {
+    auto expand(Ty val) const {
         if constexpr (Ndim == 4) return *this;
         else {
             Point<Ty, Ndim + 1> result;
@@ -314,5 +333,6 @@ POINT_TYPE_DEF(4)
 #undef POINT_BINARY_COMPARE_OVERLOAD
 #undef POINT_UNARY_COMPARE_OVERLOAD
 #undef POINT_TYPE_DEF
+#undef POINT_TYPE_CONVERT_OVERLOAD
 
 }   // end of namespace scds  
