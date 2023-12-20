@@ -35,6 +35,7 @@ public:
         std::shared_ptr<std::vector<Pointx>> pts_ptr
     );
 
+    template <typename Ptype1, typename Ptype2>
     TreeNode(
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
@@ -56,7 +57,7 @@ public:
     }
 
     template <typename PointType>
-    static Pointx quadrant_offset(PointType&& half_size, size_t quad_id);
+    static Pointx get_child_offset(PointType&& half_size, size_t child_id);
 
     // Add one point index (to form a child tree)
 

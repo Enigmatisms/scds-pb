@@ -44,7 +44,7 @@ void StaticQuadTree<T>::insert(PointType&& pt) {
                         for (size_t quad_id = 0; quad_id < Ndim; quad_id++) {
                             if (sub_sets[i].empty()) continue;
 
-                            auto offset = QdNode<T>::quadrant_offset(half_size, quad_id);
+                            auto offset = QdNode<T>::get_child_offset(half_size, quad_id);
                             ptr->add_child(ptr->center + offset, half_size, std::move(sub_sets[quad_id]), quad_id);
                         }
                         return;
