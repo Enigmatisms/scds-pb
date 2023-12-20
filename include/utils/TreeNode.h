@@ -19,20 +19,44 @@ namespace scds {
 */
 
 template<typename Ty, size_t Ndim, size_t Nchild>
-class TreeNode {
+class TreeNode : public std::enable_shared_from_this<TreeNode> {
 using Pointx = Point<Ty, Ndim>;
 using This   = TreeNode<Ty, Ndim, Nchild>;
 public:
+    /**
+     * Note: you may wonder why I use two template types here to have two universal references
+     * I think (this is my current understanding - 12.20), if center and size are of different types (l/rvalue)
+     * one unified template type might lead to compilation error
+    */
+    template <typename Ptype1, typename Ptype2>
     TreeNode(
-        const Pointx& tl, const Pointx& br, 
-        std::unordered_set<size_t>&& idxs,
-        std::shared_ptr<TreeNode> parent, 
+        Ptype1&& center, Ptype2&& size, 
+        std::weak_ptr<TreeNode> parent, 
+        std::shared_ptr<std::vector<Pointx>> pts_ptr
+    );
+
+    TreeNode(
+        Ptype1&& center, Ptype2&& size, 
+        std::weak_ptr<TreeNode> parent, 
+        std::unordered_set<size_t>&& sub_idxs,
         std::shared_ptr<std::vector<Pointx>> pts_ptr
     );
 public:
+    auto get_child(size_t child_idx);
+
     /// You need to consider both the following situation: (1) the tree structure is not yet built (2) insert in an existing node
     // Add a batch of point indices (to form a child tree)
-    auto add_child(std::unordered_set<size_t>&& pt_idxs, size_t depth, size_t max_depth = 0);
+    template <typename Ptype1, typename Ptype2>
+    auto add_child(Ptype1&& ctr, Ptype2&& new_size, std::unordered_set<size_t>&& pt_idxs, size_t child_id) {
+        childs[child_id] = std::make_shared<TreeNode>(
+            std::forward<Ptype1>(ctr), 
+            std::forward<Ptype2>(new_size), 
+            shared_from_this(), std::move(pt_idxs), this->pts
+        );
+    }
+
+    template <typename PointType>
+    static Pointx quadrant_offset(PointType&& half_size, size_t quad_id);
 
     // Add one point index (to form a child tree)
 
@@ -64,13 +88,11 @@ public:
         else
             return {};
     }
-protected:
-    // pointer to the parent node
-    std::weak_ptr<TreeNode> parent;
 
-    // pointer to child nodes
-    std::array<std::shared_ptr<TreeNode>, Nchild> childs;
-
+    size_t num_points() const {
+        return sub_idxs.size();
+    }
+public:
     // center to the sub-tree (partitioned space)
     Pointx center;
 
@@ -79,6 +101,12 @@ protected:
 
     // whether the node is a leaf node
     bool is_leaf;
+protected:
+    // pointer to the parent node
+    std::weak_ptr<TreeNode> parent;
+
+    // pointer to child nodes
+    std::array<std::shared_ptr<TreeNode>, Nchild> childs;
 
     // global chunk of memory that is visible to all tree nodes.
     std::shared_ptr<std::vector<Pointx>> pts;

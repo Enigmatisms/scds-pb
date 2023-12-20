@@ -3,13 +3,42 @@
 namespace scds {
 
 template<typename Ty, size_t Ndim, size_t Nchild>
+template <typename Ptype1, typename Ptype2>
 TreeNode<Ty, Ndim, Nchild>::TreeNode(
-    const Pointx& tl, const Pointx& br, 
-    std::unordered_set<size_t>&& idxs,
-    std::shared_ptr<This> parent, 
+    Ptype1&& center, Ptype2&& size, 
+    std::weak_ptr<This> parent, 
     std::shared_ptr<std::vector<Pointx>> pts_ptr
-) {
-    
+): center(std::forward<Ptype1>(center)), size(std::forward<Ptype1>(size)), parent(parent), pts(pts_ptr)  {
+    // Point class takes in all types (universal reference), so I use perfect forwarding here.
+}
+
+template<typename Ty, size_t Ndim, size_t Nchild>
+auto TreeNode<Ty, Ndim, Nchild>::get_child(size_t child_idx) {
+    if (childs[child_idx] != nullptr) {
+        return child_idx;
+    } else {
+        // if possible, we add another depth
+        Pointx half_size = size / 2;
+        Pointx offset = quadrant_offset(half_size, child_idx);
+        childs[child_idx] = std::make_shared<TreeNode>(center + offset, half_size, shared_from_this(), pts);
+        return childs[child_idx];
+    }
+}
+
+
+template<typename Ty, size_t Ndim, size_t Nchild>
+template <typename PointType>
+Point<Ty, Ndim> TreeNode<Ty, Ndim, Nchild>::quadrant_offset(PointType&& half_size, size_t quad_id) {
+    Pointx offset;
+    for (size_t i = 0; i < Ndim; i++) {
+        size_t index = Ndim - 1 - i;
+        if (quad_id & 1)
+            offset[index] = half_size[index];
+        else
+            offset[index] = -half_size[index];
+        quad_id >>= 1;
+    }
+    return offset;
 }
 
 template class TreeNode<float, 2, 4>;               // 2D Quad-tree
