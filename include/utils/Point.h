@@ -126,6 +126,27 @@ constexpr Point<type, Ndim> to_##typeName() const { \
     return res; \
 }
 
+#define POINT_EWISE_OVERLOAD(operationName, type, Ndim) \
+template <typename PointType> \
+constexpr Point<type, Ndim> operationName(PointType&& pt) const { \
+    static_assert(std::is_same_v<std::decay_t<PointType>, Point<std::decay_t<decltype(pt._data[0])>, Ndim>>, \
+                      "PointType must have the same Ndim as the current instance."); \
+    Point<type, Ndim> res{}; \
+    for (size_t i = 0; i < Ndim; i++) { \
+        res[i] = std::operationName(this->_data[i], static_cast<type>(pt[i])); \
+    } \
+    return res; \
+} \
+template <typename PointType> \
+Point<type, Ndim>& operationName##_inplace(PointType&& pt) { \
+    static_assert(std::is_same_v<std::decay_t<PointType>, Point<std::decay_t<decltype(pt._data[0])>, Ndim>>, \
+                      "PointType must have the same Ndim as the current instance."); \
+    for (size_t i = 0; i < Ndim; i++) { \
+        this->_data[i] = std::operationName(this->_data[i], static_cast<type>(pt[i])); \
+    } \
+    return *this; \
+}
+
 /**
  * 2D-4D points
 */
@@ -176,6 +197,7 @@ public:
     POINT_ACCESS_OVERLOAD(z, 2)
     POINT_ACCESS_OVERLOAD(w, 3)
 
+    // explicit type conversion
     POINT_TYPE_CONVERT_OVERLOAD(int,    int,        Ndim)
     POINT_TYPE_CONVERT_OVERLOAD(bool,   bool,       Ndim)
     POINT_TYPE_CONVERT_OVERLOAD(float,  float,      Ndim)
@@ -196,6 +218,11 @@ public:
 
     POINT_ANY_OPERATOR_OVERLOAD(inf, Ty, Ndim)
     POINT_ANY_OPERATOR_OVERLOAD(nan, Ty, Ndim)
+
+    POINT_EWISE_OVERLOAD(max, Ty, Ndim)
+    POINT_EWISE_OVERLOAD(min, Ty, Ndim)
+
+    
 
     template <typename PointType>
     constexpr Ty dot(PointType&& pt) const {
@@ -305,8 +332,8 @@ template <typename Ty, std::size_t Ndim>
 struct __is_point_type<Point<Ty, Ndim>> : std::true_type {};
 
 // For point type checking, will be true if T is of type Point<Ty, Ndim>
-#define ASSERT_POINT_TYPE(T) \
-    static_assert(__is_point_type<std::decay_t<T>>::value, "Input type '"#T"'is not a Point type.")
+#define STATIC_ASSERT_POINT_TYPE(T) \
+    static_assert(__is_point_type<std::decay_t<T>>::value, "Input type is not a Point type.")
 
 /**
  * Directly using std::enable_if_t<std::is_arithmetic_v<T>> might fail. Compiler might not be able to

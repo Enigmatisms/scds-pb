@@ -1,15 +1,13 @@
 #include <iostream>
-#include "utils/TreeNode.h"
 #include "utils/utils.h"
+#include "utils/TreeNode.h"
 
 using namespace scds;
 
-int main()
-{   
-    Point3f tl{0, 0, 0};
-    Point3f br{1, 2, 3};
-    std::vector<Point3f> memory_arena;
-    std::unordered_set<size_t> subset_idxs;
-    OcNode<float> node{tl, br, std::move(subset_idxs), nullptr, std::make_shared<std::vector<Point3f>>(memory_arena)};
+int main() {   
+    std::shared_ptr<TreeNode<float, 2, 4>> root_node;
+    root_node = std::make_shared<TreeNode<float, 2, 4>>(Point2f(0.5, 0.5), Point2f(0.5, 0.5), std::weak_ptr<TreeNode<float, 2, 4>>(), std::make_shared<std::vector<Point2f>>());
+    auto child = root_node->try_get_child(0);
+    std::cout << child->num_points() << std::endl;
     return 0;
 }

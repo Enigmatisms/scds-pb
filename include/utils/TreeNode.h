@@ -19,7 +19,7 @@ namespace scds {
 */
 
 template<typename Ty, size_t Ndim, size_t Nchild>
-class TreeNode : public std::enable_shared_from_this<TreeNode> {
+class TreeNode : public std::enable_shared_from_this<TreeNode<Ty, Ndim, Nchild>> {
 using Pointx = Point<Ty, Ndim>;
 using This   = TreeNode<Ty, Ndim, Nchild>;
 public:
@@ -33,7 +33,7 @@ public:
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
         std::shared_ptr<std::vector<Pointx>> pts_ptr
-    );
+    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype1>(size)), parent(parent), pts(pts_ptr)  {}
 
     template <typename Ptype1, typename Ptype2>
     TreeNode(
@@ -41,28 +41,38 @@ public:
         std::weak_ptr<TreeNode> parent, 
         std::unordered_set<size_t>&& sub_idxs,
         std::shared_ptr<std::vector<Pointx>> pts_ptr
-    );
-public:
-    auto get_child(size_t child_idx);
-
-    /// You need to consider both the following situation: (1) the tree structure is not yet built (2) insert in an existing node
-    // Add a batch of point indices (to form a child tree)
-    template <typename Ptype1, typename Ptype2>
-    auto add_child(Ptype1&& ctr, Ptype2&& new_size, std::unordered_set<size_t>&& pt_idxs, size_t child_id) {
-        childs[child_id] = std::make_shared<TreeNode>(
-            std::forward<Ptype1>(ctr), 
-            std::forward<Ptype2>(new_size), 
-            shared_from_this(), std::move(pt_idxs), this->pts
-        );
-    }
+    ):  center(std::forward<Ptype1>(center)), size(std::forward<Ptype1>(size)), 
+    parent(parent), pts(pts_ptr), sub_idxs(std::move(sub_idxs)) {}
 
     template <typename PointType>
-    static Pointx get_child_offset(PointType&& half_size, size_t child_id);
-
-    // Add one point index (to form a child tree)
+    static Pointx get_child_offset(PointType&& half_size, size_t child_id) {
+        Pointx offset;
+        for (size_t i = 0; i < Ndim; i++) {
+            size_t index = Ndim - 1 - i;
+            if (child_id & 1)
+                offset[index] = half_size[index];
+            else
+                offset[index] = -half_size[index];
+            child_id >>= 1;
+        }
+        return offset;
+    }
+public:
+    // query child node with given index. If the queried child is nullptr, we will create a new child node inplace and return it
+    std::shared_ptr<TreeNode<Ty, Ndim, Nchild>> try_get_child(size_t child_idx);
 
     void insert(size_t index) {
         sub_idxs.emplace(index);
+    }
+
+    // query child node with given index. If the queried child is nullptr, return directly.
+    std::shared_ptr<TreeNode> get_child(size_t child_idx) {
+        return childs[child_idx];
+    }
+
+    // get the indices stored in the node
+    const std::unordered_set<size_t>& get_indices() const {
+        return sub_idxs;
     }
 
     bool point_in_range(const Pointx& pt) const {
@@ -92,6 +102,31 @@ public:
 
     size_t num_points() const {
         return sub_idxs.size();
+    }
+
+    template <typename Ptype1, typename Ptype2>
+    auto add_child(Ptype1&& ctr, Ptype2&& new_size, std::unordered_set<size_t>&& pt_idxs, size_t child_id) {
+        childs[child_id] = std::make_shared<TreeNode>(
+            std::forward<Ptype1>(ctr), 
+            std::forward<Ptype2>(new_size), 
+            this->shared_from_this(), std::move(pt_idxs), this->pts
+        );
+    }
+
+    /**
+     * @brief Check if a node overlaps with a specified search range
+     * @param tr:       top right corner of the search range (size + radius)
+     * @param bl:       bottom left corner of the search range (size - radius)
+     * @param node_ptr: the node to check
+    */ 
+    template <typename PointType>
+    inline bool overlap_range(PointType&& tr, PointType&& bl) const {
+        auto tr_node = this->center + this->size;
+        auto bl_node = this->center - this->size;
+        for (size_t i = 0; i < Ndim; i++) {
+            if (tr_node[i] < bl[i] || tr[i] < bl_node[i]) return false;
+        }
+        return true;
     }
 public:
     // center to the sub-tree (partitioned space)

@@ -8,6 +8,7 @@ int main()
 {   
     Point3f p1{1, 2, 3};
     Point3f p2{2, 2, 4};
+    Point3f p3{0, 3, 1};
     std::cout << "Floating point test:\n";
     PRINT_OPS(p1)
     PRINT_OPS(p2)
@@ -33,7 +34,14 @@ int main()
     PRINT_OPS(p1 / p2);
     PRINT_OPS(p1.to_int());
     PRINT_OPS(p1.to_double());
-    PRINT_OPS(p1.to_bool());
+    std::cout << "non-inplace operation:\n";
+    auto temp = p1.max(p3);
+    temp -= int(3);
+    PRINT_OPS(temp);
+    PRINT_OPS(p1);
+    std::cout << "inplace operation:\n";
+    p1.max_inplace(p3);
+    PRINT_OPS(p1);
 
     std::cout << "Integral and constexpr test:\n";
 

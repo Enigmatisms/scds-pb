@@ -40,7 +40,6 @@ if(NOT Eigen3_FOUND)
 endif()
 
 include_directories(
-    .
     ./include
     ${EIGEN3_INCLUDE_DIR}
     /usr/local/include/
