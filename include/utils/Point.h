@@ -161,6 +161,12 @@ public:
         static_assert(sizeof...(Args) <= Ndim, "Too many arguments.");
         
     }
+
+    template <typename PointType>
+    Point(PointType&& pt) {
+        for (size_t i = 0; i < Ndim; i++)
+            _data[i] = static_cast<Ty>(pt[i]);
+    }
 public:
     POINT_BINARY_OPERATOR_OVERLOAD(+, Ty, Ndim)
     POINT_BINARY_OPERATOR_OVERLOAD(-, Ty, Ndim)
@@ -273,7 +279,7 @@ public:
     // =========== expand dimension by one (homogeneous coordinates) ==========
     template<typename PointType>
     void assign(PointType&& pt) {
-        constexpr size_t incoming_ndim = std::min(pt.ndim(), Ndim);
+        size_t incoming_ndim = std::min(pt.ndim(), Ndim);
         for (size_t i = 0; i < incoming_ndim; ++i) {
             _data[i] = pt[i];
         }
@@ -358,18 +364,19 @@ POINT_TYPE_DEF(2)
 POINT_TYPE_DEF(3)
 POINT_TYPE_DEF(4)
 
+#undef POINT_TYPE_DEF
+#undef POINT_EWISE_OVERLOAD
 #undef POINT_ASSESS_OVERLOAD
-#undef POINT_BINARY_OPERATOR_OVERLOAD
+#undef POINT_ANY_OPERATOR_OVERLOAD
+#undef POINT_TYPE_CONVERT_OVERLOAD
+#undef POINT_UNARY_OPERATOR_INVERSE
+#undef POINT_UNARY_INPLACE_OVERLOAD
+#undef POINT_UNARY_COMPARE_OVERLOAD
+#undef POINT_BINARY_COMPARE_OVERLOAD
 #undef POINT_BINARY_INPLACE_OVERLOAD
 #undef POINT_UNARY_OPERATOR_OVERLOAD
-#undef POINT_UNARY_INPLACE_OVERLOAD
-#undef POINT_UNARY_OPERATOR_INVERSE
-#undef POINT_STD_REDUCE_OPERATOR_OVERLOAD
+#undef POINT_BINARY_OPERATOR_OVERLOAD
 #undef POINT_REDUCE_OPERATOR_OVERLOAD
-#undef POINT_ANY_OPERATOR_OVERLOAD
-#undef POINT_BINARY_COMPARE_OVERLOAD
-#undef POINT_UNARY_COMPARE_OVERLOAD
-#undef POINT_TYPE_DEF
-#undef POINT_TYPE_CONVERT_OVERLOAD
+#undef POINT_STD_REDUCE_OPERATOR_OVERLOAD
 
 }   // end of namespace scds  

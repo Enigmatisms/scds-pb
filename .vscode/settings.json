@@ -76,6 +76,7 @@
         "any": "cpp",
         "codecvt": "cpp",
         "filesystem": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "*.ipp": "cpp"
     }
 }

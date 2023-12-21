@@ -41,7 +41,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
         k = 1;
     }
 
-    auto search_tr = pt + float(radius), search_bl = pt - float(radius);
+    auto search_tr = pt + static_cast<float>(radius), search_bl = pt - static_cast<float>(radius);
     T radius2 = radius * radius;
     std::vector<NodePtr> stack;
     stack.reserve(32);

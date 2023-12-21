@@ -113,7 +113,6 @@ private:
     static constexpr size_t MAX_NODE_NUM = 64;                         // physical barrier
 };
 
-
 /**
  * QuadTree (2D). Initialize the tree by passing:
  * center: center of the bounding box
