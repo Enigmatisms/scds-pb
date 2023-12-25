@@ -4,6 +4,10 @@
  * @author: Qianyue He
  * @date:   2023-12-14
 */
+
+#include <pybind11/stl.h>
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 #include "utils/TreeNode.h"
 
 namespace scds {
@@ -18,6 +22,36 @@ public:
     using Node     = TreeNode<T, Ndim, Nchild>;
     using Pointx   = Point<T, Ndim>;
     using PointVec = std::vector<Point<T, Ndim>>;
+
+    // pybind initializer (1)
+    StaticMultiTree(const pybind11::array_t<T>& center, const pybind11::array_t<T>& half_size, size_t max_depth = 0, size_t node_max_point_num = 0):
+        all_pts(std::make_shared<PointVec>()),
+        max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
+        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
+    {
+        all_pts->reserve(64);
+        root = std::make_shared<Node>(
+            Pointx::from_pointer(center.data()),
+            Pointx::from_pointer(half_size.data()),
+            std::weak_ptr<Node>(), 
+            all_pts
+        );
+    }
+
+    // pybind initializer (2)
+    StaticMultiTree(const pybind11::array_t<T>& center, const pybind11::array_t<T>& half_size, size_t max_depth = 0, size_t node_max_point_num = 0):
+        all_pts(std::make_shared<PointVec>()),
+        max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
+        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
+    {
+        all_pts->reserve(64);
+        root = std::make_shared<Node>(
+            Pointx::from_pointer(center.data()),
+            Pointx::from_pointer(half_size.data()),
+            std::weak_ptr<Node>(), 
+            all_pts
+        );
+    }
     
     template <typename Ptype1, typename Ptype2>
     StaticMultiTree(Ptype1&& center, Ptype2&& half_size, size_t max_depth = 0, size_t node_max_point_num = 0):
@@ -34,9 +68,44 @@ public:
         );
     }
 
+    // pybind initializer (2)
+    StaticMultiTree(const pybind11::array_t<T>& points, T border = 0, size_t max_depth = 0, size_t node_max_point_num = 0):
+        all_pts(std::make_shared<PointVec>()),
+        max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
+        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
+    {
+        size_t num_points = obj_array.shape()[0];
+        all_pts->reserve(num_points);
+        const T* ptr = points.data();
+        Pointx min_range = Pointx::from_pointer(ptr);
+        Pointx max_range = min_range;
+        for (size_t point_cnt = 0; point_cnt < num_points; ptr += 3, point_cnt++) {
+            auto pt = Pointx::from_pointer(ptr);
+            max_range.max_inplace(pt);
+            min_range.min_inplace(pt);
+        }
+        max_range = (max_range + min_range) / 2;    // center
+        min_range = max_range - min_range + border;          // half_size
+
+        root = std::make_shared<Node>(
+            std::move(max_range),
+            std::move(min_range), 
+            std::weak_ptr<Node>(),
+            all_pts
+        );
+
+        ptr = points.data();
+        for (size_t point_cnt = 0; point_cnt < num_points; ptr += 3, point_cnt++) {
+            auto pt = Pointx::from_pointer(ptr);
+            insert(pt);
+        }
+    }
+
     template <typename PointVecType>
     StaticMultiTree(PointVecType&& points, T border = 0, size_t max_depth = 0, size_t node_max_point_num = 0):
-        all_pts(std::make_shared<PointVec>())
+        all_pts(std::make_shared<PointVec>()),
+        max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
+        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
     {
         all_pts->reserve(points.size());
         Pointx min_range = points.front();

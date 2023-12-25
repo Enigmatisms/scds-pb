@@ -301,6 +301,14 @@ public:
             _data[i] = static_cast<Ty>(val);
     }
 
+    template<typename T>
+    static Point from_pointer(const T* const ptr) {
+        Point res{};
+        for (size_t i = 0; i < Ndim; ++i)
+            res[i] = static_cast<Ty>(ptr[i]);
+        return res;
+    }
+
     // ============ indexing ================
     constexpr Ty& operator[](int idx) {
         return this->_data[idx];
@@ -318,7 +326,7 @@ public:
         return _data;
     }
 
-    constexpr size_t ndim() const {
+    constexpr size_t ndim() const noexcept {
         return Ndim;
     }
 private:

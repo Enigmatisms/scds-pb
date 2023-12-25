@@ -7,6 +7,7 @@
             "includePath": [
                 "/usr/include/**",
                 "/usr/local/include/**",
+                "/usr/include/python3.8/**",
                 "${workspaceFolder}/include/**"
             ],
             "defines": [],

@@ -21,3 +21,6 @@
 !**/CMakeLists.txt
 !.gitignore
 !**/*.md
+
+!.vscode/
+!.vscode/*.json
