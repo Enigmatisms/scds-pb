@@ -88,12 +88,12 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
 template<typename T, size_t Ndim, size_t Nchild>
 void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
     size_t new_index = all_pts->size(), cur_depth = 0;
-    all_pts->emplace_back(pt);
+    all_pts->push_back(pt);
     auto ptr = root;
     do {
         ptr->insert(new_index);         // index will be inserted imediately
         // if we can (and must, since some condition is violated) built sub-trees, then:
-        if (cur_depth < max_depth && ptr->num_points() >= node_max_point_num) {
+        if (cur_depth < max_depth && ptr->num_points() > node_max_point_num) {
             if (!ptr->is_leaf) {
                 // current note is not leaf, decide which quandrant the point is in
                 size_t child_id = which_child(ptr, pt);
@@ -115,7 +115,7 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                 }
                 size_t next_child_id = 0;
                 for (size_t i = 0; i < Nchild; i++) {
-                    if (sub_sets.size() > node_max_point_num) {
+                    if (sub_sets[i].size() > node_max_point_num) {
                         same_child = true;
                         next_child_id  = i;
                     }
@@ -171,8 +171,9 @@ pybind11::array_t<T> StaticMultiTree<T, Ndim, Nchild>::search_nn_py(const pybind
         SCDS_RUNTIME_ERROR("`search` function can only search one point at a time.");
     auto to_search = Pointx::from_pointer(pt.data());
     std::vector<Pointx> nn;
+    std::cout << "Point to search:" << to_search << std::endl;
     search_nn(to_search, nn, k, radius);
-
+    std::cout << "Search result: " << nn.size() << " nearest point(s)." << std::endl;
     // TODO: this can be optimized - copying point data from PointVec to array_t
     pybind11::array_t<T> result = create_array_2d<T>(nn.size(), Ndim);
     T* ptr = result.mutable_data();

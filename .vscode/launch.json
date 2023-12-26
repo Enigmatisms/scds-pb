@@ -8,7 +8,26 @@
             "name": "(gdb) tree_node",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/tests/tree_node",
+            "program": "${workspaceFolder}/build_debug/tests/tree_node",
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "args": [],
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) quad tree",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build_debug/tests/quad_tree",
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "args": [],

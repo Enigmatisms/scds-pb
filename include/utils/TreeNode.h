@@ -33,15 +33,15 @@ public:
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
         std::shared_ptr<std::vector<Pointx>> pts_ptr
-    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), parent(parent), pts(pts_ptr)  {}
+    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(true), parent(parent) {}
 
     template <typename Ptype1, typename Ptype2>
     TreeNode(
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
         std::unordered_set<size_t>&& sub_idxs,
-        std::shared_ptr<std::vector<Pointx>> pts_ptr
-    ):  center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), 
+        std::shared_ptr<std::vector<Pointx>> pts_ptr, bool is_leaf = true
+    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(is_leaf), 
     parent(parent), pts(pts_ptr), sub_idxs(std::move(sub_idxs)) {}
 
     template <typename PointType>

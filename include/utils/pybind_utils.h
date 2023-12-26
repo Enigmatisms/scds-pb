@@ -45,11 +45,11 @@ bool pyArrayShapeCheck(const pybind11::array_t<T>& pt, int Ndim) {
 
 // 
 #define SMT_ARRAY_DTYPE_CHECK(pt, Type) \
-if (pt.dtype().is(pybind11::dtype::of<Type>())) { \
+if (!pt.dtype().is(pybind11::dtype::of<Type>())) { \
     if constexpr (std::is_same_v<Type, float>) \
-        SCDS_RUNTIME_ERROR("Input array must have dtype float32."); \
+        SCDS_RUNTIME_ERROR("Input array has dtype float32, while the tree is of type float64"); \
     else \
-        SCDS_RUNTIME_ERROR("Input array must have dtype float64."); \
+        SCDS_RUNTIME_ERROR("Input array has dtype float64, while the tree is of type float32"); \
 }
 #endif // SCDS_DEBUG
 

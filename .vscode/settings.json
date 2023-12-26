@@ -78,6 +78,7 @@
         "filesystem": "cpp",
         "future": "cpp",
         "*.ipp": "cpp",
-        "forward_list": "cpp"
+        "forward_list": "cpp",
+        "source_location": "cpp"
     }
 }
