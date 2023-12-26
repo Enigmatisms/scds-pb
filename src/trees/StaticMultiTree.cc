@@ -1,4 +1,6 @@
 #include <queue>
+#include "utils/utils.h"
+#include "utils/pybind_utils.h"
 #include "trees/StaticMultiTree.h"
 
 namespace scds {
@@ -20,6 +22,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn_bf(const Pointx& pt, PointVec& 
         if (max_heap.size() > k) 
             max_heap.pop();
     }
+    nn.reserve(k);
     while (!max_heap.empty()) {
         size_t idx = max_heap.top().first;
         max_heap.pop();
@@ -74,6 +77,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
             }
         }
     }
+    nn.reserve(k);
     while (!max_heap.empty()) {
         size_t idx = max_heap.top().first;
         max_heap.pop();
@@ -144,7 +148,61 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
     } while (true);
 }
 
+template<typename T, size_t Ndim, size_t Nchild>
+void StaticMultiTree<T, Ndim, Nchild>::insert_py(const pybind11::array_t<T>& pt) {
+    SMT_ARRAY_DTYPE_CHECK(pt, T);
+    bool is_single = pyArrayShapeCheck(pt, Ndim);
+    if (is_single) {
+        insert(Pointx::from_pointer(pt.data()));
+    } else {
+        const T* ptr = pt.data();
+        const size_t num_pts = pt.shape()[0];
+        for (size_t i = 0; i < num_pts; i++, ptr += Ndim) {
+            insert(Pointx::from_pointer(pt.data()));
+        }
+    }
+}
+
+template<typename T, size_t Ndim, size_t Nchild>
+pybind11::array_t<T> StaticMultiTree<T, Ndim, Nchild>::search_nn_py(const pybind11::array_t<T>& pt, int k, T radius) const {
+    SMT_ARRAY_DTYPE_CHECK(pt, T);
+    bool is_single = pyArrayShapeCheck(pt, Ndim);
+    if (!is_single)
+        SCDS_RUNTIME_ERROR("`search` function can only search one point at a time.");
+    auto to_search = Pointx::from_pointer(pt.data());
+    std::vector<Pointx> nn;
+    search_nn(to_search, nn, k, radius);
+
+    // TODO: this can be optimized - copying point data from PointVec to array_t
+    pybind11::array_t<T> result = create_array_2d<T>(nn.size(), Ndim);
+    T* ptr = result.mutable_data();
+    for (size_t i = 0; i < nn.size(); i++, ptr+=Ndim)
+        memcpy(ptr, nn[i].const_data(), sizeof(T) * Ndim);
+    return result;
+}
+
+template<typename T, size_t Ndim, size_t Nchild>
+pybind11::array_t<T> StaticMultiTree<T, Ndim, Nchild>::search_nn_bf_py(const pybind11::array_t<T>& pt, int k, T radius) const {
+    SMT_ARRAY_DTYPE_CHECK(pt, T);
+    bool is_single = pyArrayShapeCheck(pt, Ndim);
+    if (!is_single)
+        SCDS_RUNTIME_ERROR("`search` function can only search one point at a time.");
+    auto to_search = Pointx::from_pointer(pt.data());
+    std::vector<Pointx> nn;
+    search_nn_bf(to_search, nn, k, radius);
+
+    // TODO: this can be optimized - copying point data from PointVec to array_t
+    pybind11::array_t<T> result = create_array_2d<T>(nn.size(), Ndim);
+    T* ptr = result.mutable_data();
+    for (size_t i = 0; i < nn.size(); i++, ptr+=Ndim)
+        memcpy(ptr, nn[i].const_data(), sizeof(T) * Ndim);
+    
+    return result;
+}
+
 template class StaticMultiTree<float, 2, 4>;
 template class StaticMultiTree<float, 3, 8>;
+template class StaticMultiTree<double, 2, 4>;
+template class StaticMultiTree<double, 3, 8>;
 
 }   // end namespace scds

@@ -2,6 +2,8 @@
 #include "utils/utils.h"
 #include "utils/TreeNode.h"
 
+#define NO_PYBIND_SCOPE
+
 using namespace scds;
 
 int main() {   

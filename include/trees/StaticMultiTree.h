@@ -12,7 +12,6 @@
 
 namespace scds {
 
-
 /**
  * @brief Static spatial tree (quad / oct) for static scenes.
 */
@@ -24,30 +23,15 @@ public:
     using PointVec = std::vector<Point<T, Ndim>>;
 
     // pybind initializer (1)
-    StaticMultiTree(const pybind11::array_t<T>& center, const pybind11::array_t<T>& half_size, size_t max_depth = 0, size_t node_max_point_num = 0):
+    StaticMultiTree(const pybind11::array_t<T>& bbox_info, size_t max_depth = 0, size_t node_max_point_num = 0):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
     {
         all_pts->reserve(64);
         root = std::make_shared<Node>(
-            Pointx::from_pointer(center.data()),
-            Pointx::from_pointer(half_size.data()),
-            std::weak_ptr<Node>(), 
-            all_pts
-        );
-    }
-
-    // pybind initializer (2)
-    StaticMultiTree(const pybind11::array_t<T>& center, const pybind11::array_t<T>& half_size, size_t max_depth = 0, size_t node_max_point_num = 0):
-        all_pts(std::make_shared<PointVec>()),
-        max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
-        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
-    {
-        all_pts->reserve(64);
-        root = std::make_shared<Node>(
-            Pointx::from_pointer(center.data()),
-            Pointx::from_pointer(half_size.data()),
+            Pointx::from_pointer(bbox_info.data()),
+            Pointx::from_pointer(bbox_info.data() + Ndim),
             std::weak_ptr<Node>(), 
             all_pts
         );
@@ -69,23 +53,22 @@ public:
     }
 
     // pybind initializer (2)
-    StaticMultiTree(const pybind11::array_t<T>& points, T border = 0, size_t max_depth = 0, size_t node_max_point_num = 0):
+    StaticMultiTree(const pybind11::array_t<T>& points, size_t num_points, T border = 0, size_t max_depth = 0, size_t node_max_point_num = 0):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
     {
-        size_t num_points = obj_array.shape()[0];
         all_pts->reserve(num_points);
         const T* ptr = points.data();
         Pointx min_range = Pointx::from_pointer(ptr);
         Pointx max_range = min_range;
-        for (size_t point_cnt = 0; point_cnt < num_points; ptr += 3, point_cnt++) {
+        for (size_t point_cnt = 0; point_cnt < num_points; ptr += Ndim, point_cnt++) {
             auto pt = Pointx::from_pointer(ptr);
             max_range.max_inplace(pt);
             min_range.min_inplace(pt);
         }
         max_range = (max_range + min_range) / 2;    // center
-        min_range = max_range - min_range + border;          // half_size
+        min_range = max_range - min_range + static_cast<float>(border);          // half_size
 
         root = std::make_shared<Node>(
             std::move(max_range),
@@ -95,7 +78,7 @@ public:
         );
 
         ptr = points.data();
-        for (size_t point_cnt = 0; point_cnt < num_points; ptr += 3, point_cnt++) {
+        for (size_t point_cnt = 0; point_cnt < num_points; ptr += Ndim, point_cnt++) {
             auto pt = Pointx::from_pointer(ptr);
             insert(pt);
         }
@@ -115,7 +98,7 @@ public:
             min_range.min_inplace(pt);
         }
         max_range = (max_range + min_range) / 2;    // center
-        min_range = max_range - min_range + border;          // half_size
+        min_range = max_range - min_range + static_cast<float>(border);          // half_size
 
         root = std::make_shared<Node>(
             std::move(max_range),
@@ -150,6 +133,14 @@ public:
     size_t size() const {
         return root ? root->num_points() : 0;
     }
+public:     // python binding
+    void insert_py(const pybind11::array_t<T>& pt);
+
+    pybind11::array_t<T> search_nn_py(const pybind11::array_t<T>& pt, int k = 1, T radius = static_cast<T>(0)) const;
+
+    pybind11::array_t<T> search_nn_bf_py(const pybind11::array_t<T>& pt, int k = 1, T radius = static_cast<T>(0)) const;
+
+    int size_py() const {return static_cast<int>(root ? root->num_points() : 0);}
 protected:
     /**
      * @brief decide which child the node is in (via bit operation), for example, in 2D:

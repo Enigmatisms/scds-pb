@@ -24,3 +24,6 @@
 
 !.vscode/
 !.vscode/*.json
+
+!ext
+!ext/fmt
