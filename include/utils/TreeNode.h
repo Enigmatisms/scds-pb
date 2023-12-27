@@ -128,6 +128,10 @@ public:
         }
         return true;
     }
+
+    void overwrite_sub_idxs(std::unordered_set<size_t>&& src) {
+        sub_idxs = std::move(src);
+    }
 public:
     // center to the sub-tree (partitioned space)
     Pointx center;

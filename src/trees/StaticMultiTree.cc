@@ -18,9 +18,14 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn_bf(const Pointx& pt, PointVec& 
         T distance2  = (query_p - pt).length2();
         if (distance2 > radius2) continue;
         
-        max_heap.emplace(pt_idx, distance2);
-        if (max_heap.size() > k) 
-            max_heap.pop();
+        if (max_heap.size() >= k) {
+            if (distance2 < max_heap.top().second) {
+                max_heap.pop();
+                max_heap.emplace(pt_idx, distance2);
+            }
+        } else {
+            max_heap.emplace(pt_idx, distance2);
+        }
     }
     nn.reserve(k);
     while (!max_heap.empty()) {
@@ -55,7 +60,6 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
         return pr1.second < pr2.second;
     };
     std::priority_queue<std::pair<size_t, T>, std::vector<std::pair<size_t, T>>, decltype(distance_comp)> max_heap(distance_comp);
-    
     while (!stack.empty()) {
         NodePtr top_node = stack.back();
         stack.pop_back();
@@ -67,13 +71,16 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
                 continue;
             }
             for (size_t pt_idx: child->get_indices()) {
-                auto query_p = (*all_pts)[pt_idx];      // assign constructor seems to be faulty
-                T distance2  = (query_p - pt).length2();
+                T distance2  = ((*all_pts)[pt_idx] - pt).length2();
                 if (distance2 > radius2) continue;
-                
-                max_heap.emplace(pt_idx, distance2);
-                if (max_heap.size() > k) 
-                    max_heap.pop();
+                if (max_heap.size() >= k) {
+                    if (distance2 < max_heap.top().second) {
+                        max_heap.pop();
+                        max_heap.emplace(pt_idx, distance2);
+                    }
+                } else {
+                    max_heap.emplace(pt_idx, distance2);
+                }
             }
         }
     }
@@ -138,6 +145,7 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                         return;
                     }
                     ptr = ptr->try_get_child(next_child_id);
+                    ptr->overwrite_sub_idxs(std::move(sub_sets[next_child_id]));
                     cur_depth ++;
                 }
                 // check whether all the points are in the same quadrant
@@ -157,9 +165,8 @@ void StaticMultiTree<T, Ndim, Nchild>::insert_py(const pybind11::array_t<T>& pt)
     } else {
         const T* ptr = pt.data();
         const size_t num_pts = pt.shape()[0];
-        for (size_t i = 0; i < num_pts; i++, ptr += Ndim) {
-            insert(Pointx::from_pointer(pt.data()));
-        }
+        for (size_t i = 0; i < num_pts; i++, ptr += Ndim)
+            insert(Pointx::from_pointer(ptr));
     }
 }
 
@@ -171,9 +178,7 @@ pybind11::array_t<T> StaticMultiTree<T, Ndim, Nchild>::search_nn_py(const pybind
         SCDS_RUNTIME_ERROR("`search` function can only search one point at a time.");
     auto to_search = Pointx::from_pointer(pt.data());
     std::vector<Pointx> nn;
-    std::cout << "Point to search:" << to_search << std::endl;
     search_nn(to_search, nn, k, radius);
-    std::cout << "Search result: " << nn.size() << " nearest point(s)." << std::endl;
     // TODO: this can be optimized - copying point data from PointVec to array_t
     pybind11::array_t<T> result = create_array_2d<T>(nn.size(), Ndim);
     T* ptr = result.mutable_data();
