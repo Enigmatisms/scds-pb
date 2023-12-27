@@ -148,7 +148,7 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                         auto offset = Node::get_child_offset(half_size, child_id);
                         ptr->add_child(ptr->center + offset, half_size, std::move(sub_sets[child_id]), child_id);
                     }
-                    return;
+                    break;
                 } else {
                     if (cur_depth >= max_depth) {
                         // since max depth is reached, no child can be created, we are making the current node a leaf node
@@ -156,7 +156,7 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                             leafNodes ++;
                         #endif //TREE_NODE_MEMORY_PROFILE
                         ptr->is_leaf = true;   
-                        return;
+                        break;
                     }
                     ptr = ptr->try_get_child(next_child_id);
                     ptr->overwrite_sub_idxs(std::move(sub_sets[next_child_id]));
@@ -165,7 +165,7 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                 // check whether all the points are in the same quadrant
             } while (same_child);
         } else {                    // no need to build sub-tree
-            return;
+            break;
         }
     } while (true);
     tree_depth = std::max(tree_depth, cur_depth + 1);

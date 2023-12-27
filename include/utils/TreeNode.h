@@ -23,6 +23,7 @@ namespace scds {
 #define TREE_NODE_MEMORY_PROFILE
 #ifdef TREE_NODE_MEMORY_PROFILE
 STAT_MEMORY_COUNTER("TreeNode/Total TreeNode Size", treeBytes);
+STAT_COUNTER("TreeNode/Node count", nodeCount);
 STAT_COUNTER("TreeNode/Leaf nodes", leafNodes);
 #endif // TREE_NOD_MEMORY_PROFILE
 
@@ -45,6 +46,7 @@ public:
         #ifdef TREE_NODE_MEMORY_PROFILE
             treeBytes += this->get_size();
             leafNodes ++;
+            nodeCount ++;
         #endif //TREE_NODE_MEMORY_PROFILE
     }
 
@@ -57,6 +59,7 @@ public:
     ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(is_leaf), 
     parent(parent), pts(pts_ptr), sub_idxs(std::move(sub_idxs)) {
         #ifdef TREE_NODE_MEMORY_PROFILE
+            nodeCount ++;
             treeBytes += this->get_size();
             if (is_leaf) leafNodes ++;
         #endif //TREE_NODE_MEMORY_PROFILE

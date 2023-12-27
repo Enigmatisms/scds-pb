@@ -8,7 +8,7 @@ from build.tests import smt
 def full_test():
     n_nearest  = 8
     point_size = 2
-    num_pts = 200000           # use 7 to visualize a small-scale test
+    num_pts = 2000000           # use 7 to visualize a small-scale test
     radius  = 0.01
 
     query_pt = np.float32([0.23, 0.23])

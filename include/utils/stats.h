@@ -224,17 +224,10 @@ void CleanupProfiler();
     }                                                      \
     static StatRegisterer STATS_REG##var(STATS_FUNC##var)
 
-#ifndef PBRT_HAVE_CONSTEXPR
-#define STATS_INT64_T_MIN LLONG_MAX
-#define STATS_INT64_T_MAX INT64_MIN
-#define STATS_DBL_T_MIN DBL_MAX
-#define STATS_DBL_T_MAX -DBL_MAX
-#else
 #define STATS_INT64_T_MIN std::numeric_limits<int64_t>::max()
 #define STATS_INT64_T_MAX std::numeric_limits<int64_t>::lowest()
 #define STATS_DBL_T_MIN std::numeric_limits<double>::max()
 #define STATS_DBL_T_MAX std::numeric_limits<double>::lowest()
-#endif
 
 #define STAT_INT_DISTRIBUTION(title, var)                                  \
     static thread_local int64_t var##sum;                             \

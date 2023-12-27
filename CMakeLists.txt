@@ -21,22 +21,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag(-std=c++17 COMPILER_SUPPORTS_CXX17)
 if(COMPILER_SUPPORTS_CXX17)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-   add_definitions(-DCOMPILEDWITHC17)
-   message(STATUS "Using flag -std=c++17.")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+add_definitions(-DCOMPILEDWITHC17)
+message(STATUS "Using flag -std=c++17.")
 else()
-   message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
+message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
 endif()
 
-find_package(pybind11 CONFIG REQUIRED)
+# find_package(pybind11 CONFIG REQUIRED)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-find_package(Python REQUIRED COMPONENTS Development)
+find_package(Python REQUIRED COMPONENTS Interpreter Development)
 
 find_package(Eigen3 REQUIRED)
 if(NOT Eigen3_FOUND)
@@ -53,6 +53,9 @@ include_directories(
 
 link_directories(/usr/local/lib)
 
+set(PYBIND11_PYTHON_VERSION 3.10)
+
 add_subdirectory(ext/fmt)
+add_subdirectory(ext/pybind11)
 add_subdirectory(app)
 add_subdirectory(tests)

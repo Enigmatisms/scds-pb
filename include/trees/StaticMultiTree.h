@@ -142,6 +142,10 @@ public:
     size_t size() const {
         return root ? root->num_points() : 0;
     }
+
+    size_t depth() const {
+        return this->tree_depth;
+    }
 public:     // python binding
     void insert_py(const pybind11::array_t<T>& pt);
 
@@ -150,6 +154,7 @@ public:     // python binding
     pybind11::array_t<T> search_nn_bf_py(const pybind11::array_t<T>& pt, int k = 1, T radius = static_cast<T>(0)) const;
 
     int size_py() const {return static_cast<int>(root ? root->num_points() : 0);}
+    int depth_py() const {return static_cast<int>(this->tree_depth);}
 protected:
     /**
      * @brief decide which child the node is in (via bit operation), for example, in 2D:

@@ -40,6 +40,7 @@ int main(int argc, char** argv) {
     
     quad_tree.search_nn_bf(query, nns_bf, 8, 0.05);
     std::cout << "Nearest neighbor number (BF): "<< nns_bf.size() << std::endl;
+    std::cout << "Tree depth before destruct: " << quad_tree.depth() << std::endl;
 
     ReportThreadStats();    
     PrintStats(stdout);

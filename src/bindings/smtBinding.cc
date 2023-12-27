@@ -15,6 +15,11 @@ PYBIND11_MODULE(smt, m) {
         "Obtaining the number of points currently stored in the tree"
     ;
 
+    const char* DEPTH_DOC = \
+        "depth():\n"
+        "Obtaining the current depth of the tree"
+    ;
+
     const char* INSERT_DOC = \
         "insert(pt: np.ndarray):\n"
         "Insert point(s) to the tree\n"
@@ -40,6 +45,7 @@ PYBIND11_MODULE(smt, m) {
         .def(py::init<const py::array_t<float>&, size_t, size_t>())
         .def(py::init<const py::array_t<float>&, size_t, float, size_t, size_t>())
         .def("size", &scds::StaticMultiTree<float, 2, 4>::size_py, SIZE_DOC)
+        .def("depth", &scds::StaticMultiTree<float, 2, 4>::depth_py, DEPTH_DOC)
         .def("insert", &scds::StaticMultiTree<float, 2, 4>::insert_py, INSERT_DOC)
         .def("search_nn", &scds::StaticMultiTree<float, 2, 4>::search_nn_py, SEARCH_NN_DOC)
         .def("search_nn_bf", &scds::StaticMultiTree<float, 2, 4>::search_nn_bf_py, SEARCH_NN_BF_DOC);
@@ -49,6 +55,7 @@ PYBIND11_MODULE(smt, m) {
         .def(py::init<const py::array_t<float>&, size_t, size_t>())
         .def(py::init<const py::array_t<float>&, size_t, float, size_t, size_t>())
         .def("size", &scds::StaticMultiTree<float, 3, 8>::size_py, SIZE_DOC)
+        .def("depth", &scds::StaticMultiTree<float, 3, 8>::depth_py, DEPTH_DOC)
         .def("insert", &scds::StaticMultiTree<float, 3, 8>::insert_py, INSERT_DOC)
         .def("search_nn", &scds::StaticMultiTree<float, 3, 8>::search_nn_py, SEARCH_NN_DOC)
         .def("search_nn_bf", &scds::StaticMultiTree<float, 3, 8>::search_nn_bf_py, SEARCH_NN_BF_DOC);
@@ -57,6 +64,7 @@ PYBIND11_MODULE(smt, m) {
         .def(py::init<const py::array_t<double>&, size_t, size_t>())
         .def(py::init<const py::array_t<double>&, size_t, double, size_t, size_t>())
         .def("size", &scds::StaticMultiTree<double, 2, 4>::size_py, SIZE_DOC)
+        .def("depth", &scds::StaticMultiTree<double, 2, 4>::depth_py, DEPTH_DOC)
         .def("insert", &scds::StaticMultiTree<double, 2, 4>::insert_py, INSERT_DOC)
         .def("search_nn", &scds::StaticMultiTree<double, 2, 4>::search_nn_py, SEARCH_NN_DOC)
         .def("search_nn_bf", &scds::StaticMultiTree<double, 2, 4>::search_nn_bf_py, SEARCH_NN_BF_DOC);
@@ -65,6 +73,7 @@ PYBIND11_MODULE(smt, m) {
         .def(py::init<const py::array_t<double>&, size_t, size_t>())
         .def(py::init<const py::array_t<double>&, size_t, double, size_t, size_t>())
         .def("size", &scds::StaticMultiTree<double, 3, 8>::size_py, SIZE_DOC)
+        .def("depth", &scds::StaticMultiTree<double, 3, 8>::depth_py, DEPTH_DOC)
         .def("insert", &scds::StaticMultiTree<double, 3, 8>::insert_py, INSERT_DOC)
         .def("search_nn", &scds::StaticMultiTree<double, 3, 8>::search_nn_py, SEARCH_NN_DOC)
         .def("search_nn_bf", &scds::StaticMultiTree<double, 3, 8>::search_nn_bf_py, SEARCH_NN_BF_DOC);
