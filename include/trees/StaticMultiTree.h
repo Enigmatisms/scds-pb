@@ -9,8 +9,17 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include "utils/TreeNode.h"
+#include "utils/stats.h"
 
 namespace scds {
+
+#define SMT_MEMORY_PROFILE
+
+#ifdef SMT_MEMORY_PROFILE
+
+STAT_MEMORY_COUNTER("SMT/Total points", pointBytes);
+
+#endif //SMT_MEMORY_PROFILE
 
 /**
  * @brief Static spatial tree (quad / oct) for static scenes.
@@ -164,6 +173,7 @@ protected:
     std::shared_ptr<PointVec> all_pts;
     std::shared_ptr<Node> root;
 private:
+    size_t tree_depth{0};
     // maximum depth of the tree (1st priority)
     const size_t max_depth;
     // maximum number of point in a node (2nd priority)

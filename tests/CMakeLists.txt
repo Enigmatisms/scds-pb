@@ -3,6 +3,7 @@ set(SMT_TEST_SOURCES
     ../src/trees/StaticMultiTree.cc
     ../src/bindings/smtBinding.cc
     ../src/utils/TreeNode.cc
+    ../src/utils/stats.cc
 )
 pybind11_add_module(smt ${SMT_TEST_SOURCES})
 

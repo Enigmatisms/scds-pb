@@ -7,6 +7,7 @@ namespace scds {
 
 template<typename T, size_t Ndim, size_t Nchild>
 void StaticMultiTree<T, Ndim, Nchild>::search_nn_bf(const Pointx& pt, PointVec& nn, size_t k, T radius) const {
+    ProfilePhase _(Prof::StaticMultiTreeSearchNNBF);
     auto distance_comp = \
     [](const auto& pr1, const auto& pr2) {
         return pr1.second < pr2.second;
@@ -37,6 +38,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn_bf(const Pointx& pt, PointVec& 
 
 template<typename T, size_t Ndim, size_t Nchild>
 void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn, size_t k, T radius) const {
+    ProfilePhase _(Prof::StaticMultiTreeSearchNN);
     using NodePtr = std::shared_ptr<Node>;
 
     if (radius < 1e-5) {
@@ -94,9 +96,16 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
 
 template<typename T, size_t Ndim, size_t Nchild>
 void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
+    ProfilePhase _(Prof::StaticMultiTreeInsert);
     size_t new_index = all_pts->size(), cur_depth = 0;
     all_pts->push_back(pt);
     auto ptr = root;
+
+    #ifdef SMT_MEMORY_PROFILE
+        size_t pt_bytes = sizeof(Pointx);
+        pointBytes += pt_bytes;
+    #endif //SMT_MEMORY_PROFILE
+
     do {
         ptr->insert(new_index);         // index will be inserted imediately
         // if we can (and must, since some condition is violated) built sub-trees, then:
@@ -109,7 +118,6 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                 continue;
             }
             // parition the tree
-            ptr->is_leaf = false;
             bool same_child = false;
             do {
                 std::array<std::unordered_set<size_t>, Nchild> sub_sets;
@@ -127,6 +135,10 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                         next_child_id  = i;
                     }
                 }
+                #ifdef TREE_NODE_MEMORY_PROFILE
+                    leafNodes --;
+                #endif //TREE_NODE_MEMORY_PROFILE
+                ptr->is_leaf = false;
                 if (!same_child) {
                     // points are not in the same quadrant, the leaf node can be successfully partitioned
                     Pointx half_size = ptr->size / 2, offset;
@@ -138,9 +150,11 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                     }
                     return;
                 } else {
-                    // update ptr to that same
                     if (cur_depth >= max_depth) {
                         // since max depth is reached, no child can be created, we are making the current node a leaf node
+                        #ifdef TREE_NODE_MEMORY_PROFILE
+                            leafNodes ++;
+                        #endif //TREE_NODE_MEMORY_PROFILE
                         ptr->is_leaf = true;   
                         return;
                     }
@@ -154,10 +168,12 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
             return;
         }
     } while (true);
+    tree_depth = std::max(tree_depth, cur_depth + 1);
 }
 
 template<typename T, size_t Ndim, size_t Nchild>
 void StaticMultiTree<T, Ndim, Nchild>::insert_py(const pybind11::array_t<T>& pt) {
+    ProfilePhase _(Prof::StaticMultiTreeInsertPy);
     SMT_ARRAY_DTYPE_CHECK(pt, T);
     bool is_single = pyArrayShapeCheck(pt, Ndim);
     if (is_single) {
@@ -172,6 +188,8 @@ void StaticMultiTree<T, Ndim, Nchild>::insert_py(const pybind11::array_t<T>& pt)
 
 template<typename T, size_t Ndim, size_t Nchild>
 pybind11::array_t<T> StaticMultiTree<T, Ndim, Nchild>::search_nn_py(const pybind11::array_t<T>& pt, int k, T radius) const {
+    ProfilePhase _(Prof::StaticMultiTreeSearchNNPy);
+
     SMT_ARRAY_DTYPE_CHECK(pt, T);
     bool is_single = pyArrayShapeCheck(pt, Ndim);
     if (!is_single)
@@ -189,6 +207,8 @@ pybind11::array_t<T> StaticMultiTree<T, Ndim, Nchild>::search_nn_py(const pybind
 
 template<typename T, size_t Ndim, size_t Nchild>
 pybind11::array_t<T> StaticMultiTree<T, Ndim, Nchild>::search_nn_bf_py(const pybind11::array_t<T>& pt, int k, T radius) const {
+    ProfilePhase _(Prof::StaticMultiTreeSearchNNBFPy);
+
     SMT_ARRAY_DTYPE_CHECK(pt, T);
     bool is_single = pyArrayShapeCheck(pt, Ndim);
     if (!is_single)

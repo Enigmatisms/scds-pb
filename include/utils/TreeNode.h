@@ -4,6 +4,8 @@
 #include <memory>
 #include <unordered_set>
 #include "Point.h"
+#include "utils/stats.h"
+
 namespace scds {
 
 /**
@@ -17,6 +19,12 @@ namespace scds {
  * I suspect that here we can do the same optimization, but I will stick to the simpler version first
  * Then I might go back and try to improve this
 */
+
+#define TREE_NODE_MEMORY_PROFILE
+#ifdef TREE_NODE_MEMORY_PROFILE
+STAT_MEMORY_COUNTER("TreeNode/Total TreeNode Size", treeBytes);
+STAT_COUNTER("TreeNode/Leaf nodes", leafNodes);
+#endif // TREE_NOD_MEMORY_PROFILE
 
 template<typename Ty, size_t Ndim, size_t Nchild>
 class TreeNode : public std::enable_shared_from_this<TreeNode<Ty, Ndim, Nchild>> {
@@ -33,7 +41,12 @@ public:
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
         std::shared_ptr<std::vector<Pointx>> pts_ptr
-    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(true), parent(parent) {}
+    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(true), parent(parent) {
+        #ifdef TREE_NODE_MEMORY_PROFILE
+            treeBytes += this->get_size();
+            leafNodes ++;
+        #endif //TREE_NODE_MEMORY_PROFILE
+    }
 
     template <typename Ptype1, typename Ptype2>
     TreeNode(
@@ -42,10 +55,17 @@ public:
         std::unordered_set<size_t>&& sub_idxs,
         std::shared_ptr<std::vector<Pointx>> pts_ptr, bool is_leaf = true
     ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(is_leaf), 
-    parent(parent), pts(pts_ptr), sub_idxs(std::move(sub_idxs)) {}
+    parent(parent), pts(pts_ptr), sub_idxs(std::move(sub_idxs)) {
+        #ifdef TREE_NODE_MEMORY_PROFILE
+            treeBytes += this->get_size();
+            if (is_leaf) leafNodes ++;
+        #endif //TREE_NODE_MEMORY_PROFILE
+    }
 
     template <typename PointType>
     static Pointx get_child_offset(PointType&& half_size, size_t child_id) {
+        ProfilePhase _(Prof::TreeNodeGetChildOffset);
+
         Pointx offset;
         for (size_t i = 0; i < Ndim; i++) {
             size_t index = Ndim - 1 - i;
@@ -63,6 +83,9 @@ public:
 
     void insert(size_t index) {
         sub_idxs.emplace(index);
+        #ifdef TREE_NODE_MEMORY_PROFILE
+            treeBytes += sizeof(size_t);
+        #endif //TREE_NODE_MEMORY_PROFILE
     }
 
     // query child node with given index. If the queried child is nullptr, return directly.
@@ -106,6 +129,7 @@ public:
 
     template <typename Ptype1, typename Ptype2>
     auto add_child(Ptype1&& ctr, Ptype2&& new_size, std::unordered_set<size_t>&& pt_idxs, size_t child_id) {
+        ProfilePhase _(Prof::TreeNodeAddChild);
         childs[child_id] = std::make_shared<TreeNode>(
             std::forward<Ptype1>(ctr), 
             std::forward<Ptype2>(new_size), 
@@ -121,6 +145,7 @@ public:
     */ 
     template <typename PointType>
     inline bool overlap_range(PointType&& tr, PointType&& bl) const {
+        ProfilePhase _(Prof::NumProfCategories);
         auto tr_node = this->center + this->size;
         auto bl_node = this->center - this->size;
         for (size_t i = 0; i < Ndim; i++) {
@@ -130,6 +155,11 @@ public:
     }
 
     void overwrite_sub_idxs(std::unordered_set<size_t>&& src) {
+        #ifdef TREE_NODE_MEMORY_PROFILE
+            auto size_of_set = sizeof(this->sub_idxs.bucket_count() * sizeof(size_t)) + sizeof(sub_idxs);
+            treeBytes -= size_of_set;
+            treeBytes += sizeof(src.bucket_count() * sizeof(size_t)) + sizeof(src);
+        #endif //TREE_NODE_MEMORY_PROFILE
         sub_idxs = std::move(src);
     }
 public:
@@ -141,6 +171,8 @@ public:
 
     // whether the node is a leaf node
     bool is_leaf;
+private:
+    size_t get_size() const;
 protected:
     // pointer to the parent node
     std::weak_ptr<TreeNode> parent;
