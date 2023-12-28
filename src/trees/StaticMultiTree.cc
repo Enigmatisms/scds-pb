@@ -13,8 +13,8 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn_bf(const Pointx& pt, PointVec& 
         return pr1.second < pr2.second;
     };
     auto radius2 = radius * radius;
-    std::priority_queue<std::pair<size_t, T>, std::vector<std::pair<size_t, T>>, decltype(distance_comp)> max_heap(distance_comp);
-    for (size_t pt_idx: root->get_indices()) {
+    std::priority_queue<std::pair<int, T>, std::vector<std::pair<int, T>>, decltype(distance_comp)> max_heap(distance_comp);
+    for (int pt_idx: root->get_indices()) {
         auto query_p = (*all_pts)[pt_idx];
         T distance2  = (query_p - pt).length2();
         if (distance2 > radius2) continue;
@@ -30,7 +30,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn_bf(const Pointx& pt, PointVec& 
     }
     nn.reserve(k);
     while (!max_heap.empty()) {
-        size_t idx = max_heap.top().first;
+        int idx = max_heap.top().first;
         max_heap.pop();
         nn.push_back((*all_pts)[idx]);
     }
@@ -61,7 +61,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
     [](const auto& pr1, const auto& pr2) {
         return pr1.second < pr2.second;
     };
-    std::priority_queue<std::pair<size_t, T>, std::vector<std::pair<size_t, T>>, decltype(distance_comp)> max_heap(distance_comp);
+    std::priority_queue<std::pair<int, T>, std::vector<std::pair<int, T>>, decltype(distance_comp)> max_heap(distance_comp);
     while (!stack.empty()) {
         NodePtr top_node = stack.back();
         stack.pop_back();
@@ -72,7 +72,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
                 stack.push_back(child);
                 continue;
             }
-            for (size_t pt_idx: child->get_indices()) {
+            for (int pt_idx: child->get_indices()) {
                 T distance2  = ((*all_pts)[pt_idx] - pt).length2();
                 if (distance2 > radius2) continue;
                 if (max_heap.size() >= k) {
@@ -88,7 +88,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
     }
     nn.reserve(k);
     while (!max_heap.empty()) {
-        size_t idx = max_heap.top().first;
+        int idx = max_heap.top().first;
         max_heap.pop();
         nn.push_back((*all_pts)[idx]);
     }
@@ -107,26 +107,26 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
     #endif //SMT_MEMORY_PROFILE
 
     do {
-        ptr->insert(new_index);         // index will be inserted imediately
+        ptr->insert(static_cast<int>(new_index));         // index will be inserted imediately
         // if we can (and must, since some condition is violated) built sub-trees, then:
         if (cur_depth < max_depth && ptr->num_points() > node_max_point_num) {
             if (!ptr->is_leaf) {
                 // current note is not leaf, decide which quandrant the point is in
                 size_t child_id = which_child(ptr, pt);
                 ptr = ptr->try_get_child(child_id);
-                cur_depth ++;
+                tree_depth = std::max(tree_depth, cur_depth ++) + 1;
                 continue;
             }
             // parition the tree
             bool same_child = false;
             do {
-                std::array<std::unordered_set<size_t>, Nchild> sub_sets;
+                std::array<std::vector<int>, Nchild> sub_sets;
                 for (auto idx: ptr->get_indices()) {
                     // we should consider the worst case: that the N + 1 points recursively fail to be 
                     // partioned (since they are close to each other and always fall in the same quadrant)  
                     const Pointx& p = (*all_pts)[idx];
                     size_t child_id = which_child(ptr, p);
-                    sub_sets[child_id].emplace(idx);
+                    sub_sets[child_id].emplace_back(idx);
                 }
                 size_t next_child_id = 0;
                 for (size_t i = 0; i < Nchild; i++) {
@@ -148,7 +148,7 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                         auto offset = Node::get_child_offset(half_size, child_id);
                         ptr->add_child(ptr->center + offset, half_size, std::move(sub_sets[child_id]), child_id);
                     }
-                    break;
+                    return;
                 } else {
                     if (cur_depth >= max_depth) {
                         // since max depth is reached, no child can be created, we are making the current node a leaf node
@@ -156,19 +156,18 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                             leafNodes ++;
                         #endif //TREE_NODE_MEMORY_PROFILE
                         ptr->is_leaf = true;   
-                        break;
+                        return;
                     }
                     ptr = ptr->try_get_child(next_child_id);
                     ptr->overwrite_sub_idxs(std::move(sub_sets[next_child_id]));
-                    cur_depth ++;
+                    tree_depth = std::max(tree_depth, cur_depth ++) + 1;
                 }
                 // check whether all the points are in the same quadrant
             } while (same_child);
         } else {                    // no need to build sub-tree
-            break;
+            return;
         }
     } while (true);
-    tree_depth = std::max(tree_depth, cur_depth + 1);
 }
 
 template<typename T, size_t Ndim, size_t Nchild>

@@ -2,7 +2,6 @@
 #include <array>
 #include <vector>
 #include <memory>
-#include <unordered_set>
 #include "Point.h"
 #include "utils/stats.h"
 
@@ -23,6 +22,7 @@ namespace scds {
 #define TREE_NODE_MEMORY_PROFILE
 #ifdef TREE_NODE_MEMORY_PROFILE
 STAT_MEMORY_COUNTER("TreeNode/Total TreeNode Size", treeBytes);
+STAT_MEMORY_COUNTER("TreeNode/Shared Ptr Size", sharedPtrBytes);
 STAT_COUNTER("TreeNode/Node count", nodeCount);
 STAT_COUNTER("TreeNode/Leaf nodes", leafNodes);
 #endif // TREE_NOD_MEMORY_PROFILE
@@ -42,9 +42,10 @@ public:
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
         std::shared_ptr<std::vector<Pointx>> pts_ptr
-    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(true), parent(parent) {
+    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(true), parent(parent), pts(pts_ptr) {
         #ifdef TREE_NODE_MEMORY_PROFILE
             treeBytes += this->get_size();
+            sharedPtrBytes += sizeof(std::shared_ptr<std::vector<Pointx>>);
             leafNodes ++;
             nodeCount ++;
         #endif //TREE_NODE_MEMORY_PROFILE
@@ -54,13 +55,14 @@ public:
     TreeNode(
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
-        std::unordered_set<size_t>&& sub_idxs,
+        std::vector<int>&& sub_idxs,
         std::shared_ptr<std::vector<Pointx>> pts_ptr, bool is_leaf = true
     ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(is_leaf), 
     parent(parent), pts(pts_ptr), sub_idxs(std::move(sub_idxs)) {
         #ifdef TREE_NODE_MEMORY_PROFILE
             nodeCount ++;
             treeBytes += this->get_size();
+            sharedPtrBytes += sizeof(std::shared_ptr<std::vector<Pointx>>);
             if (is_leaf) leafNodes ++;
         #endif //TREE_NODE_MEMORY_PROFILE
     }
@@ -84,39 +86,20 @@ public:
     // query child node with given index. If the queried child is nullptr, we will create a new child node inplace and return it
     std::shared_ptr<TreeNode<Ty, Ndim, Nchild>> try_get_child(size_t child_idx);
 
-    void insert(size_t index) {
-        sub_idxs.emplace(index);
+    void insert(int value) {
+        sub_idxs.emplace_back(value);
         #ifdef TREE_NODE_MEMORY_PROFILE
-            treeBytes += sizeof(size_t);
+            treeBytes += sizeof(int);
         #endif //TREE_NODE_MEMORY_PROFILE
     }
-
     // query child node with given index. If the queried child is nullptr, return directly.
     std::shared_ptr<TreeNode> get_child(size_t child_idx) {
         return childs[child_idx];
     }
 
     // get the indices stored in the node
-    const std::unordered_set<size_t>& get_indices() const {
+    const std::vector<int>& get_indices() const {
         return sub_idxs;
-    }
-
-    bool point_in_range(const Pointx& pt) const {
-        auto diff = (center - pt).abs();
-        return ((size - diff) > 0).all();
-    }
-
-    bool exist(size_t idx) const {
-        return sub_idxs.count(idx);
-    }
-
-    bool remove(size_t idx) {
-        auto it = sub_idxs.find(idx);
-        if (it != sub_idxs.end()) {
-            sub_idxs.erase(it);
-            return true;
-        }
-        return false;                   // not removed since the target does not exist
     }
 
     std::shared_ptr<TreeNode> get_parent() const {
@@ -131,13 +114,16 @@ public:
     }
 
     template <typename Ptype1, typename Ptype2>
-    auto add_child(Ptype1&& ctr, Ptype2&& new_size, std::unordered_set<size_t>&& pt_idxs, size_t child_id) {
+    auto add_child(Ptype1&& ctr, Ptype2&& new_size, std::vector<int>&& pt_idxs, size_t child_id) {
         ProfilePhase _(Prof::TreeNodeAddChild);
         childs[child_id] = std::make_shared<TreeNode>(
             std::forward<Ptype1>(ctr), 
             std::forward<Ptype2>(new_size), 
             this->shared_from_this(), std::move(pt_idxs), this->pts
         );
+        #ifdef TREE_NODE_MEMORY_PROFILE
+            sharedPtrBytes += sizeof(std::shared_ptr<TreeNode>);
+        #endif //TREE_NODE_MEMORY_PROFILE
     }
 
     /**
@@ -157,11 +143,11 @@ public:
         return true;
     }
 
-    void overwrite_sub_idxs(std::unordered_set<size_t>&& src) {
+    void overwrite_sub_idxs(std::vector<int>&& src) {
         #ifdef TREE_NODE_MEMORY_PROFILE
-            auto size_of_set = sizeof(this->sub_idxs.bucket_count() * sizeof(size_t)) + sizeof(sub_idxs);
+            auto size_of_set = sizeof(this->sub_idxs.size() * sizeof(int)) + sizeof(sub_idxs);
             treeBytes -= size_of_set;
-            treeBytes += sizeof(src.bucket_count() * sizeof(size_t)) + sizeof(src);
+            treeBytes += sizeof(src.size() * sizeof(int)) + sizeof(src);
         #endif //TREE_NODE_MEMORY_PROFILE
         sub_idxs = std::move(src);
     }
@@ -187,7 +173,7 @@ protected:
     std::shared_ptr<std::vector<Pointx>> pts;
 
     // the indices to points contained in this sub-tree
-    std::unordered_set<size_t> sub_idxs;
+    std::vector<int> sub_idxs;
     // question is: where should we store the nodes and how to recursive free the tree 
 };
 
@@ -196,6 +182,6 @@ template<typename T>
 using QdNode = TreeNode<T, 2, 4>;
 // node for Octree
 template<typename T>
-using OcNode = TreeNode<T, 3, 8>; 
+using OcNode = TreeNode<T, 3, 8>;
 
 } // end namespace scds

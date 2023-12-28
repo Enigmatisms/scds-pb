@@ -1,14 +1,64 @@
 import sys
+import tqdm
 import time
 sys.path.append("../../")
 import numpy as np
 import matplotlib.pyplot as plt
 from build.tests import smt
 
+"""
+200k points, depth 32, 4 nn for leaf nodes
+
+unordered_set implementation
+Insert time: 364.75483 ms
+Tree search time: 0.01971 ms
+BF search time: 10.15662 ms
+
+vector implementation
+Insert time: 83.24949 ms
+Tree search time: 0.01561 ms
+BF search time: 0.19610 ms
+"""
+
+def repeated_test():
+    max_depth     = 10
+    n_nearest     = 8
+    leaf_node_max = 64
+    num_pts       = 600000           # use 7 to visualize a small-scale test
+    radius        = 0.01
+    query_pt = np.float32([0.23, 0.23])
+    repeat_epochs = 30
+    
+    tree_range = np.float32([
+        [0.5, 0.5],
+        [0.5, 0.5]
+    ])
+    
+    time_sums = np.float64([0, 0, 0])
+    for _ in tqdm.tqdm(range(repeat_epochs)):
+        quad_tree = smt.QuadTreef(tree_range, max_depth, leaf_node_max)
+        pts = np.random.rand(num_pts, 2).astype(np.float32)
+        
+        start_time = time.time()
+        quad_tree.insert(pts)
+        time_sums[0] += (time.time() - start_time) * 1000
+        
+        start_time = time.time()
+        _ = quad_tree.search_nn(query_pt, n_nearest, radius)
+        time_sums[1] += (time.time() - start_time) * 1000
+
+        start_time = time.time()
+        _ = quad_tree.search_nn_bf(query_pt, n_nearest, radius)
+        time_sums[2] += (time.time() - start_time) * 1000
+    time_sums /= repeat_epochs
+    print(f"Insert time: {time_sums[0]:.5f} ms")
+    print(f"Tree search time: {time_sums[1]:.5f} ms")
+    print(f"BF search time: {time_sums[2]:.5f} ms")
+
 def full_test():
     n_nearest  = 8
     point_size = 2
-    num_pts = 2000000           # use 7 to visualize a small-scale test
+    num_pts = 200000           # use 7 to visualize a small-scale test
     radius  = 0.01
 
     query_pt = np.float32([0.23, 0.23])
@@ -17,6 +67,7 @@ def full_test():
         [0.5, 0.5],
         [0.5, 0.5]
     ])
+    
     quad_tree = smt.QuadTreef(range, 32, 4)
     pts = np.random.rand(num_pts, 2).astype(np.float32)
 
@@ -53,4 +104,4 @@ def full_test():
 
 if __name__ == "__main__":
     np.random.seed(2)
-    full_test()
+    repeated_test()
