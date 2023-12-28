@@ -36,6 +36,7 @@ set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+find_package(PCL 1.13 REQUIRED COMPONENTS io common octree)
 find_package(Python REQUIRED COMPONENTS Interpreter Development)
 
 find_package(Eigen3 REQUIRED)
@@ -47,8 +48,8 @@ include_directories(
    ./include
    ./ext/fmt/include/
    /usr/local/include/
+   ${PCL_INCLUDE_DIRS}
    ${Python_INCLUDE_DIRS}
-   ${EIGEN3_INCLUDE_DIR}
 )
 
 link_directories(/usr/local/lib)
