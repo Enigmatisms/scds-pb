@@ -40,9 +40,8 @@ public:
     template <typename Ptype1, typename Ptype2>
     TreeNode(
         Ptype1&& center, Ptype2&& size, 
-        std::weak_ptr<TreeNode> parent, 
-        std::shared_ptr<std::vector<Pointx>> pts_ptr
-    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(true), parent(parent), pts(pts_ptr) {
+        std::weak_ptr<TreeNode> parent
+    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(true), parent(parent) {
         #ifdef TREE_NODE_MEMORY_PROFILE
             treeBytes += this->get_size();
             sharedPtrBytes += sizeof(std::shared_ptr<std::vector<Pointx>>);
@@ -55,10 +54,9 @@ public:
     TreeNode(
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
-        std::vector<int>&& sub_idxs,
-        std::shared_ptr<std::vector<Pointx>> pts_ptr, bool is_leaf = true
+        std::vector<int>&& sub_idxs, bool is_leaf = true
     ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(is_leaf), 
-    parent(parent), pts(pts_ptr), sub_idxs(std::move(sub_idxs)) {
+    parent(parent), sub_idxs(std::move(sub_idxs)) {
         #ifdef TREE_NODE_MEMORY_PROFILE
             nodeCount ++;
             treeBytes += this->get_size();
@@ -67,21 +65,7 @@ public:
         #endif //TREE_NODE_MEMORY_PROFILE
     }
 
-    template <typename PointType>
-    static Pointx get_child_offset(PointType&& half_size, size_t child_id) {
-        ProfilePhase _(Prof::TreeNodeGetChildOffset);
-
-        Pointx offset;
-        for (size_t i = 0; i < Ndim; i++) {
-            size_t index = Ndim - 1 - i;
-            if (child_id & 1)
-                offset[index] = half_size[index];
-            else
-                offset[index] = -half_size[index];
-            child_id >>= 1;
-        }
-        return offset;
-    }
+    static Pointx get_child_offset(const Pointx& half_size, size_t child_id);
 public:
     // query child node with given index. If the queried child is nullptr, we will create a new child node inplace and return it
     std::shared_ptr<TreeNode<Ty, Ndim, Nchild>> try_get_child(size_t child_idx);
@@ -116,11 +100,14 @@ public:
     template <typename Ptype1, typename Ptype2>
     auto add_child(Ptype1&& ctr, Ptype2&& new_size, std::vector<int>&& pt_idxs, size_t child_id) {
         ProfilePhase _(Prof::TreeNodeAddChild);
-        childs[child_id] = std::make_shared<TreeNode>(
-            std::forward<Ptype1>(ctr), 
-            std::forward<Ptype2>(new_size), 
-            this->shared_from_this(), std::move(pt_idxs), this->pts
-        );
+        {
+            ProfilePhase _(Prof::TreeNodeCreateSharedPtr);
+            childs[child_id] = std::make_shared<TreeNode>(
+                std::forward<Ptype1>(ctr), 
+                std::forward<Ptype2>(new_size), 
+                this->shared_from_this(), std::move(pt_idxs)
+            );
+        }
         #ifdef TREE_NODE_MEMORY_PROFILE
             sharedPtrBytes += sizeof(std::shared_ptr<TreeNode>);
         #endif //TREE_NODE_MEMORY_PROFILE
@@ -168,9 +155,6 @@ protected:
 
     // pointer to child nodes
     std::array<std::shared_ptr<TreeNode>, Nchild> childs;
-
-    // global chunk of memory that is visible to all tree nodes.
-    std::shared_ptr<std::vector<Pointx>> pts;
 
     // the indices to points contained in this sub-tree
     std::vector<int> sub_idxs;

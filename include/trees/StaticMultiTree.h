@@ -41,8 +41,7 @@ public:
         root = std::make_shared<Node>(
             Pointx::from_pointer(bbox_info.data()),
             Pointx::from_pointer(bbox_info.data() + Ndim),
-            std::weak_ptr<Node>(), 
-            all_pts
+            std::weak_ptr<Node>()
         );
     }
     
@@ -56,8 +55,7 @@ public:
         root = std::make_shared<Node>(
             std::forward<Ptype1>(center), 
             std::forward<Ptype2>(half_size),
-            std::weak_ptr<Node>(), 
-            all_pts
+            std::weak_ptr<Node>()
         );
     }
 
@@ -82,8 +80,7 @@ public:
         root = std::make_shared<Node>(
             std::move(max_range),
             std::move(min_range), 
-            std::weak_ptr<Node>(),
-            all_pts
+            std::weak_ptr<Node>()
         );
 
         ptr = points.data();
@@ -112,8 +109,7 @@ public:
         root = std::make_shared<Node>(
             std::move(max_range),
             std::move(min_range), 
-            std::weak_ptr<Node>(),
-            all_pts
+            std::weak_ptr<Node>()
         );
 
         for (const auto& pt: points)

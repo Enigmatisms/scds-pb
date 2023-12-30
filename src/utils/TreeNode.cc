@@ -7,14 +7,34 @@ std::shared_ptr<TreeNode<Ty, Ndim, Nchild>> TreeNode<Ty, Ndim, Nchild>::try_get_
     ProfilePhase _(Prof::TreeNodeTryGetChild);
     if (!childs[child_idx]) {
         // if possible, we add another depth
-        Pointx half_size = size / 2;
+        Pointx half_size = size * 0.5;
         Pointx offset = get_child_offset(half_size, child_idx);
-        childs[child_idx] = std::make_shared<TreeNode>(center + offset, half_size, this->shared_from_this(), pts);
+        {
+            ProfilePhase _(Prof::TreeNodeCreateSharedPtr);
+            
+            childs[child_idx] = std::make_shared<TreeNode>(center + offset, half_size, this->shared_from_this());
+        }
         #ifdef TREE_NODE_MEMORY_PROFILE
             sharedPtrBytes += sizeof(std::shared_ptr<TreeNode>);
         #endif //TREE_NODE_MEMORY_PROFILE
     }
     return childs[child_idx];
+}
+
+template<typename Ty, size_t Ndim, size_t Nchild>
+Point<Ty, Ndim> TreeNode<Ty, Ndim, Nchild>::get_child_offset(const Pointx& half_size, size_t child_id) {
+    ProfilePhase _(Prof::TreeNodeGetChildOffset);
+
+    Pointx offset;
+    for (size_t i = 0; i < Ndim; i++) {
+        size_t index = Ndim - 1 - i;
+        if (child_id & 1)
+            offset[index] = half_size[index];
+        else
+            offset[index] = -half_size[index];
+        child_id >>= 1;
+    }
+    return offset;
 }
 
 template<typename Ty, size_t Ndim, size_t Nchild>
