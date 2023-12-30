@@ -136,7 +136,7 @@ public:
     void search_nn_bf(const Pointx& pt, PointVec& nn, size_t k = 1, T radius = static_cast<T>(0)) const;
 
     size_t size() const {
-        return root ? root->num_points() : 0;
+        return root ? root->num_points : 0;
     }
 
     size_t depth() const {
@@ -149,7 +149,10 @@ public:     // python binding
 
     pybind11::array_t<T> search_nn_bf_py(const pybind11::array_t<T>& pt, int k = 1, T radius = static_cast<T>(0)) const;
 
-    int size_py() const {return static_cast<int>(root ? root->num_points() : 0);}
+    // get the structure of the tree
+    pybind11::tuple get_tree_structure() const;
+
+    int size_py() const {return static_cast<int>(root ? root->num_points : 0);}
     int depth_py() const {return static_cast<int>(this->tree_depth);}
 protected:
     /**

@@ -40,7 +40,8 @@ Point<Ty, Ndim> TreeNode<Ty, Ndim, Nchild>::get_child_offset(const Pointx& half_
 template<typename Ty, size_t Ndim, size_t Nchild>
 size_t TreeNode<Ty, Ndim, Nchild>::get_size() const {
     size_t size = sizeof(*this);  // Size of the current instance
-    size += sub_idxs.size() * sizeof(int);
+    if (is_leaf())
+        size += sub_idxs->size() * sizeof(int);
     for (const auto& child : childs) {
         if (child)
             size += child->get_size();

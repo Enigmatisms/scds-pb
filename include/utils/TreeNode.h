@@ -41,7 +41,8 @@ public:
     TreeNode(
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent
-    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(true), parent(parent) {
+    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), num_points(0), parent(parent) {
+        sub_idxs = std::make_unique<std::vector<int>>();
         #ifdef TREE_NODE_MEMORY_PROFILE
             treeBytes += this->get_size();
             sharedPtrBytes += sizeof(std::shared_ptr<std::vector<Pointx>>);
@@ -54,14 +55,15 @@ public:
     TreeNode(
         Ptype1&& center, Ptype2&& size, 
         std::weak_ptr<TreeNode> parent, 
-        std::vector<int>&& sub_idxs, bool is_leaf = true
-    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), is_leaf(is_leaf), 
-    parent(parent), sub_idxs(std::move(sub_idxs)) {
+        std::vector<int>&& idxs
+    ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), 
+    parent(parent), sub_idxs(std::make_unique<std::vector<int>>(std::move(idxs))) {
+        num_points = sub_idxs->size();
         #ifdef TREE_NODE_MEMORY_PROFILE
             nodeCount ++;
             treeBytes += this->get_size();
             sharedPtrBytes += sizeof(std::shared_ptr<std::vector<Pointx>>);
-            if (is_leaf) leafNodes ++;
+            leafNodes ++;
         #endif //TREE_NODE_MEMORY_PROFILE
     }
 
@@ -71,7 +73,7 @@ public:
     std::shared_ptr<TreeNode<Ty, Ndim, Nchild>> try_get_child(size_t child_idx);
 
     void insert(int value) {
-        sub_idxs.emplace_back(value);
+        sub_idxs->emplace_back(value);
         #ifdef TREE_NODE_MEMORY_PROFILE
             treeBytes += sizeof(int);
         #endif //TREE_NODE_MEMORY_PROFILE
@@ -83,7 +85,7 @@ public:
 
     // get the indices stored in the node
     const std::vector<int>& get_indices() const {
-        return sub_idxs;
+        return *sub_idxs;
     }
 
     std::shared_ptr<TreeNode> get_parent() const {
@@ -91,10 +93,6 @@ public:
             return ptr;
         else
             return {};
-    }
-
-    size_t num_points() const {
-        return sub_idxs.size();
     }
 
     template <typename Ptype1, typename Ptype2>
@@ -132,11 +130,28 @@ public:
 
     void overwrite_sub_idxs(std::vector<int>&& src) {
         #ifdef TREE_NODE_MEMORY_PROFILE
-            auto size_of_set = sizeof(this->sub_idxs.size() * sizeof(int)) + sizeof(sub_idxs);
-            treeBytes -= size_of_set;
+            if (sub_idxs) {
+                auto size_of_set = sizeof(this->sub_idxs->size() * sizeof(int)) + sizeof(sub_idxs);
+                treeBytes -= size_of_set;
+            }
             treeBytes += sizeof(src.size() * sizeof(int)) + sizeof(src);
         #endif //TREE_NODE_MEMORY_PROFILE
-        sub_idxs = std::move(src);
+        sub_idxs = std::make_unique<std::vector<int>>(std::move(src));
+        num_points = sub_idxs->size();
+    }
+
+    bool is_leaf() const noexcept {
+        return (sub_idxs != nullptr);
+    }
+
+    void set_leaf() noexcept {
+        // make the current node a leaf node (when sub_idxs is not a nullptr)
+        sub_idxs = std::make_unique<std::vector<int>>();
+    }
+
+    void set_non_leaf() noexcept {
+        // make the current node a non-leaf node (when sub_idxs is a nullptr)
+        sub_idxs.reset(nullptr);
     }
 public:
     // center to the sub-tree (partitioned space)
@@ -145,8 +160,8 @@ public:
     // extent of the partitioned space
     Pointx size;
 
-    // whether the node is a leaf node
-    bool is_leaf;
+    // number of points stored in the subtree
+    size_t num_points;
 private:
     size_t get_size() const;
 protected:
@@ -156,9 +171,8 @@ protected:
     // pointer to child nodes
     std::array<std::shared_ptr<TreeNode>, Nchild> childs;
 
-    // the indices to points contained in this sub-tree
-    std::vector<int> sub_idxs;
-    // question is: where should we store the nodes and how to recursive free the tree 
+    // indices will only be stored in the leaf nodes (for non-leaf nodes, this is a nullptr)
+    std::unique_ptr<std::vector<int>> sub_idxs;
 };
 
 template<typename T>

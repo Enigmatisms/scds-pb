@@ -8,13 +8,13 @@ using namespace scds;
 
 int main(int argc, char** argv) {   
     InitProfiler();
+    StaticMultiTree<float, 2, 4> quad_tree(Point2f(0.5, 0.5), Point2f(0.5, 0.5), 32, 1);
+
     size_t num_points = 2000000;
     if (argc > 1) {
         num_points = static_cast<size_t>(atoi(argv[1]));
         num_points = std::max(8ul, num_points);
     }
-    StaticMultiTree<float, 2, 4> quad_tree(Point2f(0.5, 0.5), Point2f(0.5, 0.5), 32, 1);
-
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0.0, 1.0);

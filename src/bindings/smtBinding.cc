@@ -36,6 +36,16 @@ PYBIND11_MODULE(smt, m) {
         "the points returned are ordered by distance to `pt` (descending)"
     ;
 
+    const char* TREE_STRUCTURE_DOC = \
+        "search_nn(pt: np.ndarray, k: int, radius: [float, double]):\n"
+        "Find at most k nearest neighbors with specified\n"
+        "pt: point around which the search is performed. Should be of shape (Ndim) or (1, Ndim)\n"
+        "k: number of nearest neighbors to keep (maximum, can be fewer than this if there aren't enough neighbors)\n"
+        "radius: spatial tree search radius\n\n"
+        "return: (N_found, Ndim) np.ndarray with N_found neighbors, note that\n"
+        "the points returned are ordered by distance to `pt` (descending)"
+    ;
+
     const char* SEARCH_NN_BF_DOC = \
         "search_nn_bf(pt: np.ndarray, k: int, radius: [float, double]):\n"
         "(Brute-force) Find at most k nearest neighbors with specified (see `search_nn` for more info)"
@@ -48,7 +58,8 @@ PYBIND11_MODULE(smt, m) {
         .def("depth", &scds::StaticMultiTree<float, 2, 4>::depth_py, DEPTH_DOC)
         .def("insert", &scds::StaticMultiTree<float, 2, 4>::insert_py, INSERT_DOC)
         .def("search_nn", &scds::StaticMultiTree<float, 2, 4>::search_nn_py, SEARCH_NN_DOC)
-        .def("search_nn_bf", &scds::StaticMultiTree<float, 2, 4>::search_nn_bf_py, SEARCH_NN_BF_DOC);
+        .def("search_nn_bf", &scds::StaticMultiTree<float, 2, 4>::search_nn_bf_py, SEARCH_NN_BF_DOC)
+        .def("tree_structure", &scds::StaticMultiTree<float, 2, 4>::get_tree_structure, TREE_STRUCTURE_DOC);
     
 
     py::class_<scds::StaticMultiTree<float, 3, 8>>(m, "OctTreef")
@@ -58,7 +69,8 @@ PYBIND11_MODULE(smt, m) {
         .def("depth", &scds::StaticMultiTree<float, 3, 8>::depth_py, DEPTH_DOC)
         .def("insert", &scds::StaticMultiTree<float, 3, 8>::insert_py, INSERT_DOC)
         .def("search_nn", &scds::StaticMultiTree<float, 3, 8>::search_nn_py, SEARCH_NN_DOC)
-        .def("search_nn_bf", &scds::StaticMultiTree<float, 3, 8>::search_nn_bf_py, SEARCH_NN_BF_DOC);
+        .def("search_nn_bf", &scds::StaticMultiTree<float, 3, 8>::search_nn_bf_py, SEARCH_NN_BF_DOC)
+        .def("tree_structure", &scds::StaticMultiTree<float, 3, 8>::get_tree_structure, TREE_STRUCTURE_DOC);
 
     py::class_<scds::StaticMultiTree<double, 2, 4>>(m, "QuadTreed")
         .def(py::init<const py::array_t<double>&, size_t, size_t>())
@@ -67,7 +79,8 @@ PYBIND11_MODULE(smt, m) {
         .def("depth", &scds::StaticMultiTree<double, 2, 4>::depth_py, DEPTH_DOC)
         .def("insert", &scds::StaticMultiTree<double, 2, 4>::insert_py, INSERT_DOC)
         .def("search_nn", &scds::StaticMultiTree<double, 2, 4>::search_nn_py, SEARCH_NN_DOC)
-        .def("search_nn_bf", &scds::StaticMultiTree<double, 2, 4>::search_nn_bf_py, SEARCH_NN_BF_DOC);
+        .def("search_nn_bf", &scds::StaticMultiTree<double, 2, 4>::search_nn_bf_py, SEARCH_NN_BF_DOC)
+        .def("tree_structure", &scds::StaticMultiTree<double, 2, 4>::get_tree_structure, TREE_STRUCTURE_DOC);
 
     py::class_<scds::StaticMultiTree<double, 3, 8>>(m, "OctTreed")
         .def(py::init<const py::array_t<double>&, size_t, size_t>())
@@ -76,6 +89,7 @@ PYBIND11_MODULE(smt, m) {
         .def("depth", &scds::StaticMultiTree<double, 3, 8>::depth_py, DEPTH_DOC)
         .def("insert", &scds::StaticMultiTree<double, 3, 8>::insert_py, INSERT_DOC)
         .def("search_nn", &scds::StaticMultiTree<double, 3, 8>::search_nn_py, SEARCH_NN_DOC)
-        .def("search_nn_bf", &scds::StaticMultiTree<double, 3, 8>::search_nn_bf_py, SEARCH_NN_BF_DOC);
+        .def("search_nn_bf", &scds::StaticMultiTree<double, 3, 8>::search_nn_bf_py, SEARCH_NN_BF_DOC)
+        .def("tree_structure", &scds::StaticMultiTree<double, 3, 8>::get_tree_structure, TREE_STRUCTURE_DOC);
 }
 

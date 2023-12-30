@@ -150,7 +150,7 @@ Point<type, Ndim>& operationName##_inplace(PointType&& pt) { \
 /**
  * 2D-4D points
 */
-template<typename Ty, size_t Ndim, typename = std::enable_if_t<Ndim >= 2 && Ndim <=4>>
+template<typename Ty, size_t Ndim, typename = std::enable_if_t<Ndim >= 2 && Ndim <=6>>
 class Point {
 public:
     constexpr Point() { memset(_data, static_cast<Ty>(0), Ndim * sizeof(Ty)); }
@@ -286,7 +286,7 @@ public:
     }
 
     auto expand(Ty val) const {
-        if constexpr (Ndim == 4) return *this;
+        if constexpr (Ndim == 6) return *this;
         else {
             Point<Ty, Ndim + 1> result;
             result.assign(*this);
@@ -339,6 +339,8 @@ template<typename T>
 using Point3 = Point<T, 3>;
 template<typename T>
 using Point4 = Point<T, 4>;
+template<typename T>
+using Point6 = Point<T, 6>;
 
 template <typename T>
 struct __is_point_type : std::false_type {};
@@ -371,6 +373,7 @@ POINT_UNARY_OPERATOR_INVERSE(/)
 POINT_TYPE_DEF(2)
 POINT_TYPE_DEF(3)
 POINT_TYPE_DEF(4)
+POINT_TYPE_DEF(6)
 
 #undef POINT_TYPE_DEF
 #undef POINT_EWISE_OVERLOAD

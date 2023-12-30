@@ -14,7 +14,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn_bf(const Pointx& pt, PointVec& 
     };
     auto radius2 = radius * radius;
     std::priority_queue<std::pair<int, T>, std::vector<std::pair<int, T>>, decltype(distance_comp)> max_heap(distance_comp);
-    for (int pt_idx: root->get_indices()) {
+    for (size_t pt_idx = 0; pt_idx < root->num_points; pt_idx++) {
         auto query_p = (*all_pts)[pt_idx];
         T distance2  = (query_p - pt).length2();
         if (distance2 > radius2) continue;
@@ -68,7 +68,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
         for (size_t i = 0; i < Nchild; i++) {
             auto child = top_node->get_child(i);       
             if (!child || !child->overlap_range(search_tr, search_bl)) continue;
-            if (!child->is_leaf) {
+            if (!child->is_leaf()) {
                 stack.push_back(child);
                 continue;
             }
@@ -97,7 +97,8 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
 template<typename T, size_t Ndim, size_t Nchild>
 void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
     ProfilePhase _(Prof::StaticMultiTreeInsert);
-    size_t new_index = all_pts->size(), cur_depth = 0;
+    int new_index = static_cast<int>(all_pts->size());
+    size_t cur_depth = 0;
     all_pts->push_back(pt);
     auto ptr = root;
 
@@ -107,17 +108,17 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
     #endif //SMT_MEMORY_PROFILE
 
     do {
-        ptr->insert(static_cast<int>(new_index));         // index will be inserted imediately
+        ptr->num_points++;
         // if we can (and must, since some condition is violated) built sub-trees, then:
-        if (cur_depth < max_depth && ptr->num_points() > node_max_point_num) {
-            if (!ptr->is_leaf) {
+        if (cur_depth < max_depth && ptr->num_points > node_max_point_num) {
+            if (!ptr->is_leaf()) {
                 // current note is not leaf, decide which quandrant the point is in
                 size_t child_id = which_child(ptr, pt);
                 ptr = ptr->try_get_child(child_id);
                 tree_depth = std::max(tree_depth, cur_depth ++) + 1;
                 continue;
             }
-            // parition the tree
+            ptr->insert(new_index);
             bool same_child = false;
             do {
                 std::array<std::vector<int>, Nchild> sub_sets;
@@ -128,6 +129,8 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                     size_t child_id = which_child(ptr, p);
                     sub_sets[child_id].emplace_back(idx);
                 }
+
+                same_child = false;
                 size_t next_child_id = 0;
                 for (size_t i = 0; i < Nchild; i++) {
                     if (sub_sets[i].size() > node_max_point_num) {
@@ -135,11 +138,12 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                         next_child_id  = i;
                     }
                 }
-                #ifdef TREE_NODE_MEMORY_PROFILE
-                    leafNodes --;
-                #endif //TREE_NODE_MEMORY_PROFILE
-                ptr->is_leaf = false;
+                
                 if (!same_child) {
+                    #ifdef TREE_NODE_MEMORY_PROFILE
+                        leafNodes --;
+                    #endif //TREE_NODE_MEMORY_PROFILE
+                    ptr->set_non_leaf();
                     // points are not in the same quadrant, the leaf node can be successfully partitioned
                     Pointx half_size = ptr->size / 2, offset;
                     for (size_t child_id = 0; child_id < Nchild; child_id++) {
@@ -152,12 +156,12 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                 } else {
                     if (cur_depth >= max_depth) {
                         // since max depth is reached, no child can be created, we are making the current node a leaf node
-                        #ifdef TREE_NODE_MEMORY_PROFILE
-                            leafNodes ++;
-                        #endif //TREE_NODE_MEMORY_PROFILE
-                        ptr->is_leaf = true;   
                         return;
                     }
+                    #ifdef TREE_NODE_MEMORY_PROFILE
+                        leafNodes --;
+                    #endif //TREE_NODE_MEMORY_PROFILE
+                    ptr->set_non_leaf();   
                     ptr = ptr->try_get_child(next_child_id);
                     ptr->overwrite_sub_idxs(std::move(sub_sets[next_child_id]));
                     tree_depth = std::max(tree_depth, cur_depth ++) + 1;
@@ -165,6 +169,7 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                 // check whether all the points are in the same quadrant
             } while (same_child);
         } else {                    // no need to build sub-tree
+            ptr->insert(new_index);
             return;
         }
     } while (true);
@@ -224,6 +229,48 @@ pybind11::array_t<T> StaticMultiTree<T, Ndim, Nchild>::search_nn_bf_py(const pyb
     
     return result;
 }
+
+template<typename T, size_t Ndim, size_t Nchild>
+pybind11::tuple StaticMultiTree<T, Ndim, Nchild>::get_tree_structure() const {
+    static_assert(Ndim < 4, "Visualizing 4+ dimension is point less.");
+    using NodePtr = std::shared_ptr<Node>;
+    std::vector<NodePtr> stack;
+    stack.reserve(32);
+    stack.push_back(root);
+    constexpr size_t Ndim2 = Ndim << 1;
+
+    std::vector<Point4<T>> non_leaf_nodes, leaf_nodes;
+    non_leaf_nodes.reserve(root->num_points << 1);
+    leaf_nodes.reserve(root->num_points);
+
+    while (!stack.empty()) {
+        NodePtr top_node = stack.back();
+        Point<T, Ndim2> node_range;
+        for (size_t i = 0; i < Ndim; i++) {
+            node_range[i]        = top_node->center[i];
+            node_range[i + Ndim] = top_node->size[i];
+        }
+        if (top_node->is_leaf())
+            leaf_nodes.push_back(node_range);
+        else
+            non_leaf_nodes.push_back(node_range);
+        stack.pop_back();
+        for (size_t i = 0; i < Nchild; i++) {
+            auto child = top_node->get_child(i);       
+            if (!child) continue;
+            stack.push_back(child);
+        }
+    }
+    pybind11::array_t<T> non_leaf_nodes_py = create_array_2d<T>(non_leaf_nodes.size(), Ndim2);
+    pybind11::array_t<T> leaf_nodes_py     = create_array_2d<T>(leaf_nodes.size(), Ndim2);
+    T* ptr1 = non_leaf_nodes_py.mutable_data(), *ptr2 = leaf_nodes_py.mutable_data();
+    for (size_t i = 0; i < non_leaf_nodes.size(); i++, ptr1+=Ndim2)
+        memcpy(ptr1, non_leaf_nodes[i].const_data(), sizeof(T) * Ndim2);
+    for (size_t i = 0; i < leaf_nodes.size(); i++, ptr2+=Ndim2)
+        memcpy(ptr2, leaf_nodes[i].const_data(), sizeof(T) * Ndim2);
+    return pybind11::make_tuple(non_leaf_nodes_py, leaf_nodes_py);
+}
+
 
 template class StaticMultiTree<float, 2, 4>;
 template class StaticMultiTree<float, 3, 8>;
