@@ -58,7 +58,7 @@ public:
         std::vector<int>&& idxs
     ): center(std::forward<Ptype1>(center)), size(std::forward<Ptype2>(size)), 
     parent(parent), sub_idxs(std::make_unique<std::vector<int>>(std::move(idxs))) {
-        num_points = sub_idxs->size();
+        num_points = static_cast<int>(sub_idxs->size());
         #ifdef TREE_NODE_MEMORY_PROFILE
             nodeCount ++;
             treeBytes += this->get_size();
@@ -137,7 +137,7 @@ public:
             treeBytes += sizeof(src.size() * sizeof(int)) + sizeof(src);
         #endif //TREE_NODE_MEMORY_PROFILE
         sub_idxs = std::make_unique<std::vector<int>>(std::move(src));
-        num_points = sub_idxs->size();
+        num_points = static_cast<int>(sub_idxs->size());
     }
 
     bool is_leaf() const noexcept {
@@ -161,7 +161,7 @@ public:
     Pointx size;
 
     // number of points stored in the subtree
-    size_t num_points;
+    int num_points;
 private:
     size_t get_size() const;
 protected:

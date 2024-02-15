@@ -79,7 +79,8 @@
         "future": "cpp",
         "*.ipp": "cpp",
         "forward_list": "cpp",
-        "source_location": "cpp"
+        "source_location": "cpp",
+        "ranges": "cpp"
     },
     "esbonio.sphinx.confDir": ""
 }

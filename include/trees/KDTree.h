@@ -8,48 +8,59 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
-#include "utils/TreeNode.h"
+#include "utils/BinTreeNode.h"
 #include "utils/stats.h"
 
 namespace scds {
 
-#define SMT_MEMORY_PROFILE
+#define KDT_MEMORY_PROFILE
 
-#ifdef SMT_MEMORY_PROFILE
+#ifdef KDT_MEMORY_PROFILE
 
-STAT_MEMORY_COUNTER("SMT/Total points", pointBytes);
+STAT_MEMORY_COUNTER("KDT/Total points", pointBytes);
 
-#endif //SMT_MEMORY_PROFILE
+#endif //KDT_MEMORY_PROFILE
+
+// comparing functor
+template<typename T>
+struct DistanceComp {
+    bool operator()(const std::pair<int, T>& pr1, const std::pair<int, T>& pr2) const {
+        return pr1.second < pr2.second;
+    }
+};
 
 /**
- * @brief Static spatial tree (quad / oct) for static scenes.
+ * @brief KD-tree efficient nearest neighbor earch structure
 */
-template <typename T, size_t Ndim, size_t Nchild>
-class StaticMultiTree {
+template <typename T, size_t Ndim>
+class KDTree {
+
 public:
-    using Node     = TreeNode<T, Ndim, Nchild>;
+    using Node     = BinTreeNode<T, Ndim>;
     using Pointx   = Point<T, Ndim>;
     using PointVec = std::vector<Point<T, Ndim>>;
-
+    using QueueType = std::priority_queue<std::pair<int, T>, std::vector<std::pair<int, T>>, DistanceComp<T>>;
     // pybind initializer (1)
-    StaticMultiTree(const pybind11::array_t<T>& bbox_info, size_t max_depth = 0, size_t node_max_point_num = 0):
+    KDTree(const pybind11::array_t<T>& bbox_info, size_t max_depth = 0, size_t node_max_point_num = 0, int k = 1, T radius = 0):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
-        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
+        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
+        k(k), radius(radius), max_heap(DistanceComp<T>{})
     {
         all_pts->reserve(64);
         root = std::make_shared<Node>(
-            Pointx::from_pointer(bbox_info.data()),
+            Pointx::from_pointer(bbox_info.data()), 
             Pointx::from_pointer(bbox_info.data() + Ndim),
             std::weak_ptr<Node>()
         );
     }
     
     template <typename Ptype1, typename Ptype2>
-    StaticMultiTree(Ptype1&& center, Ptype2&& half_size, size_t max_depth = 0, size_t node_max_point_num = 0):
+    KDTree(Ptype1&& center, Ptype2&& half_size, size_t max_depth = 0, size_t node_max_point_num = 0, int k = 1, T radius = 0):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
-        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
+        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
+        k(k), radius(radius), max_heap(DistanceComp<T>{})
     {
         all_pts->reserve(64);
         root = std::make_shared<Node>(
@@ -60,10 +71,14 @@ public:
     }
 
     // pybind initializer (2)
-    StaticMultiTree(const pybind11::array_t<T>& points, size_t num_points, T border = 0, size_t max_depth = 0, size_t node_max_point_num = 0):
+    KDTree(
+        const pybind11::array_t<T>& points, size_t num_points, T border = 0, 
+        size_t max_depth = 0, size_t node_max_point_num = 0, int k = 1, T radius = 0
+    ):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
-        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
+        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
+        k(k), radius(radius), max_heap(DistanceComp<T>{})
     {
         all_pts->reserve(num_points);
         const T* ptr = points.data();
@@ -78,8 +93,8 @@ public:
         min_range = max_range - min_range + static_cast<float>(border);          // half_size
 
         root = std::make_shared<Node>(
-            std::move(max_range),
-            std::move(min_range), 
+            std::move(max_range), 
+            std::move(min_range),
             std::weak_ptr<Node>()
         );
 
@@ -91,10 +106,11 @@ public:
     }
 
     template <typename PointVecType>
-    StaticMultiTree(PointVecType&& points, T border = 0, size_t max_depth = 0, size_t node_max_point_num = 0):
+    KDTree(PointVecType&& points, T border = 0, size_t max_depth = 0, size_t node_max_point_num = 0, int k = 1, T radius = 0):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
-        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM))
+        node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
+        k(k), radius(radius), max_heap(DistanceComp<T>{})
     {
         all_pts->reserve(points.size());
         Pointx min_range = points.front();
@@ -107,8 +123,8 @@ public:
         min_range = max_range - min_range + static_cast<float>(border);          // half_size
 
         root = std::make_shared<Node>(
-            std::move(max_range),
-            std::move(min_range), 
+            std::move(max_range), 
+            std::move(min_range),
             std::weak_ptr<Node>()
         );
 
@@ -120,20 +136,16 @@ public:
     void insert(const Pointx& pt);
 
     /**
-     * @brief Nearest neighbor search in the tree
+     * @brief Nearest neighbor search in the K-D-tree, note that k-d tree does not rely on search radius strictly
      * @param pt:     point to search around
-     * @param knn:    resulting points are stored here
-     * @param k:      number of nearest points
-     * @param radius: we can specify the radius to keep the point in this radius. 
-     * When radius search is used, be sure to set k = 0
+     * @param nn:    resulting points are stored here
      * 
      * Actually, quad/oct tree is not suitable for KNN (specifying K), since tree will not be easy to prune
      * so here, radius will be a compulsory parameter
     */
-    void search_nn(const Pointx& pt, PointVec& nn, size_t k = 1, T radius = static_cast<T>(0)) const;
+    void search_nn(const Pointx& pt, PointVec& nn, int k = 1, T radius = 0) const;
 
-    // same utility but implemented via brute force searching
-    void search_nn_bf(const Pointx& pt, PointVec& nn, size_t k = 1, T radius = static_cast<T>(0)) const;
+    void recursive_solve(const Pointx& pt, QueueType& queue, std::shared_ptr<Node> cur_node) const;
 
     int size() const {
         return root ? root->num_points : 0;
@@ -145,9 +157,7 @@ public:
 public:     // python binding
     void insert_py(const pybind11::array_t<T>& pt);
 
-    pybind11::array_t<T> search_nn_py(const pybind11::array_t<T>& pt, int k = 1, T radius = static_cast<T>(0)) const;
-
-    pybind11::array_t<T> search_nn_bf_py(const pybind11::array_t<T>& pt, int k = 1, T radius = static_cast<T>(0)) const;
+    pybind11::array_t<T> search_nn_py(const pybind11::array_t<T>& pt, int k = 1, T radius = 0) const;
 
     // get the structure of the tree
     pybind11::tuple get_tree_structure() const;
@@ -155,20 +165,6 @@ public:     // python binding
     int size_py() const {return static_cast<int>(root ? root->num_points : 0);}
     int depth_py() const {return static_cast<int>(this->tree_depth);}
 protected:
-    /**
-     * @brief decide which child the node is in (via bit operation), for example, in 2D:
-     * @note    y
-     * @note 01 | 11
-     * @note ---.--- x
-     * @note 00 | 10
-    */
-    template <typename PointType>
-    static size_t which_child(std::shared_ptr<Node> node, PointType&& pt) {
-        STATIC_ASSERT_POINT_TYPE(PointType);
-        auto judge = ((pt - node->center) > 0).to_u64();
-        return (judge[0] << 1) + judge[1];
-    }
-
     static constexpr size_t valid_num_check(size_t value, size_t max_num) {
         value = (value == 0) ? max_num : value;
         return std::min(max_num, value);
@@ -177,34 +173,31 @@ protected:
     std::shared_ptr<PointVec> all_pts;
     std::shared_ptr<Node> root;
 private:
-    int tree_depth{0};
+    size_t tree_depth{0};
     // maximum depth of the tree (1st priority)
-    const int max_depth;
+    const size_t max_depth;
     // maximum number of point in a node (2nd priority)
-    const int node_max_point_num;
+    const size_t node_max_point_num;
+    // number of nearest points to extract
+    int k;
+    // radius from which the nearest points are extract
+    T radius;
 
-    static constexpr int MAX_DEPTH    = 32;                         // physical barrier
-    static constexpr int MAX_NODE_NUM = 64;                         // physical barrier
+    static constexpr size_t MAX_DEPTH    = 32;                         // physical barrier
+    static constexpr size_t MAX_NODE_NUM = 64;                         // physical barrier
 };
 
 /**
- * QuadTree (2D). Initialize the tree by passing:
- * center: center of the bounding box
- * half_size: half size of the bounding box
- * max_depth: 0 by default, which means no maximum depth limit
- * node_max_point_num: maximum number of point in a leaf node
+ * @todo: ...
+
 */
 template <typename T>
-using QuadTree = StaticMultiTree<T, 2, 4>;
+using KDTree2 = KDTree<T, 2>;
 
 /**
- * OctTree (3D). Initialize the tree by passing:
- * center: center of the bounding box
- * half_size: half size of the bounding box
- * max_depth: 0 by default, which means no maximum depth limit
- * node_max_point_num: maximum number of point in a leaf node
+ * @todo: ...
 */
 template <typename T>
-using OctTree = StaticMultiTree<T, 3, 8>;
+using KDTree3 = KDTree<T, 3>;
 
 }       // end namespace scds

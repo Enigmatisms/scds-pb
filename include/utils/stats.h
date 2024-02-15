@@ -151,6 +151,10 @@ enum class Prof {
     StaticMultiTreeInsertPy,
     StaticMultiTreeSearchNNPy,
     StaticMultiTreeSearchNNBFPy,
+    KDTreeSearchNN,
+    KDTreeSearchNNPy,
+    KDTreeInsert,
+    KDTreeInsertPy,
     NumProfCategories
 };
 
@@ -172,6 +176,10 @@ static const char *ProfNames[] = {
     "StaticMultiTree::insert_py()",
     "StaticMultiTree::search_nn_py()",
     "StaticMultiTree::search_nn_bf_py()",
+    "KDTree::search_nn()",
+    "KDTree::search_nn_py()",
+    "KDTree::insert()",
+    "KDTree::insert_py()",
 };
 
 static_assert((int)Prof::NumProfCategories ==

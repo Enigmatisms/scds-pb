@@ -14,7 +14,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn_bf(const Pointx& pt, PointVec& 
     };
     auto radius2 = radius * radius;
     std::priority_queue<std::pair<int, T>, std::vector<std::pair<int, T>>, decltype(distance_comp)> max_heap(distance_comp);
-    for (size_t pt_idx = 0; pt_idx < root->num_points; pt_idx++) {
+    for (int pt_idx = 0; pt_idx < root->num_points; pt_idx++) {
         auto query_p = (*all_pts)[pt_idx];
         T distance2  = (query_p - pt).length2();
         if (distance2 > radius2) continue;
@@ -97,8 +97,7 @@ void StaticMultiTree<T, Ndim, Nchild>::search_nn(const Pointx& pt, PointVec& nn,
 template<typename T, size_t Ndim, size_t Nchild>
 void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
     ProfilePhase _(Prof::StaticMultiTreeInsert);
-    int new_index = static_cast<int>(all_pts->size());
-    size_t cur_depth = 0;
+    int new_index = static_cast<int>(all_pts->size()), cur_depth = 0;
     all_pts->push_back(pt);
     auto ptr = root;
 
