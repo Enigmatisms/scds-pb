@@ -13,7 +13,7 @@ SplitAxis BinTreeNode<Ty, Ndim>::max_extent_axis(const std::vector<Pointx>& pts)
     Pointx diff = maxi - mini;
     int max_axis  = 0;
     Ty max_extent = diff[0]; 
-    for (int i = 1; i < 3; i++) {
+    for (size_t i = 1; i < Ndim; i++) {
         if (diff[i] > max_extent) {
             max_extent = diff[i];
             max_axis   = i;
@@ -28,12 +28,16 @@ void BinTreeNode<Ty, Ndim>::split_leaf_node(const std::vector<Pointx>& pts) {
     SplitAxis axis   = max_extent_axis(pts);
     this->split_axis = axis; 
     // get split pos using nth_element
-    auto center_it = pts.begin() + (pts.size() >> 1);
-    auto comp_op = [axis](const Pointx& p1, const Pointx& p2) {return p1[axis] < p2[axis];};
-    // this is not correct (huge problem)
-    std::vector<Pointx>::iterator elem_1 = std::nth_element(pts.begin(), center_it, pts.end(), comp_op),
-         elem_2 = std::nth_element(pts.begin(), center_it + 1, pts.end(), comp_op);
-    this->split_pos = 0.5 * ((*elem_1)[axis] + (*elem_2)[axis]);
+    auto comp_op = [axis, &pts](int index_1, int index_2) {return pts[index_1][axis] < pts[index_2][axis];};
+
+    std::nth_element(sub_idxs->begin(), sub_idxs->begin() + (sub_idxs->size() >> 1), sub_idxs->end(), comp_op);
+    int index_1 = *(sub_idxs->begin() + (sub_idxs->size() >> 1));
+
+    std::nth_element(sub_idxs->begin(), sub_idxs->begin() + (sub_idxs->size() >> 1) + 1, sub_idxs->end(), comp_op);
+    int index_2 = *(sub_idxs->begin() + (sub_idxs->size() >> 1) + 1);
+
+    this->split_pos = 0.5 * (pts[index_1][axis] + pts[index_2][axis]);
+
     std::vector<int> lcontainer, rcontainer;
     for (int idx: *sub_idxs) {
         if (pts[idx][axis] < this->split_pos)

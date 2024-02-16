@@ -35,4 +35,5 @@ add_executable(kdtree kdtree.cc
 )
 
 target_link_libraries(quad_tree PRIVATE fmt::fmt pybind11::module ${PYTHON_LIBRARIES} Python::Python)
+target_link_libraries(kdtree PRIVATE fmt::fmt pybind11::module ${PYTHON_LIBRARIES} Python::Python)
 

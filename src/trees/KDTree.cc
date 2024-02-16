@@ -7,19 +7,19 @@ namespace scds {
 
 template<typename T, size_t Ndim>
 void KDTree<T, Ndim>::recursive_solve(const Pointx& pt, QueueType& queue, std::shared_ptr<Node> cur_node) const {
-    if (!top_node->is_leaf()) {
-        auto res_child = top_node->resident_child(pt);
-        recursive_solve(pt, res_child, k, radius);
-        T axial_diff = std::abs(pt[top_node->split_axis] - top_node->split_pos);
+    if (!cur_node->is_leaf()) {
+        auto res_child = cur_node->resident_child(pt);
+        recursive_solve(pt, queue, res_child);
+        T axial_diff = std::abs(pt[cur_node->split_axis] - cur_node->split_pos);
         if (!queue.empty() && queue.top().second > axial_diff) {
-            recursive_solve(pt, top_node->the_other(res_child.get()))
+            recursive_solve(pt, queue, cur_node->the_other(res_child.get()));
         }
     } else {        // leaf node: traverse all the points in the node
         T radius2 = radius * radius;
         for (int pt_idx: cur_node->get_indices()) {
             T distance2  = ((*all_pts)[pt_idx] - pt).length2();
             if (distance2 > radius2) continue;
-            if (queue.size() >= k) {
+            if (static_cast<int>(queue.size()) >= k) {
                 if (distance2 < queue.top().second) {
                     queue.pop();
                     queue.emplace(pt_idx, distance2);
@@ -71,7 +71,7 @@ void KDTree<T, Ndim>::insert(const Pointx& pt) {
             tree_depth = std::max(tree_depth, cur_depth ++) + 1;
             if (!ptr->is_leaf()) {
                 // find the child leaf the new point should reside in
-                ptr = top_node->resident_child(pt, radius);
+                ptr = ptr->resident_child(pt);
                 continue;
             }
             // When the current node should be splitted (maximum point riched)
@@ -88,10 +88,10 @@ void KDTree<T, Ndim>::insert(const Pointx& pt) {
 
 template<typename T, size_t Ndim>
 void KDTree<T, Ndim>::build_tree_py(const pybind11::array_t<T>& pts) {
-    const size_t num_pts = pt.shape()[0];
+    const size_t num_pts = pts.shape()[0];
     std::vector<Pointx> points;
     points.reserve(num_pts);
-    const T* ptr = pt.data();
+    const T* ptr = pts.data();
     for (size_t i = 0; i < num_pts; i++, ptr += Ndim)
         points.emplace_back(Pointx::from_pointer(ptr));
     build_tree(std::move(points));
@@ -120,9 +120,6 @@ pybind11::array_t<T> KDTree<T, Ndim>::search_nn_py(const pybind11::array_t<T>& p
     bool is_single = pyArrayShapeCheck(pt, Ndim);
     if (!is_single)
         SCDS_RUNTIME_ERROR("`search` function can only search one point at a time.");
-
-    this->k = k;
-    this->radius = radius;
 
     auto to_search = Pointx::from_pointer(pt.data());
     std::vector<Pointx> nn;
@@ -153,15 +150,15 @@ pybind11::tuple KDTree<T, Ndim>::get_tree_structure() const {
         Point<T, Ndim2> node_range;
         for (size_t i = 0; i < Ndim; i++) {
             node_range[i]        = top_node->center[i];
-            node_range[i + Ndim] = top_node->size[i];
+            node_range[i + Ndim] = top_node->half_size[i];
         }
         if (top_node->is_leaf())
             leaf_nodes.push_back(node_range);
         else
             non_leaf_nodes.push_back(node_range);
         stack.pop_back();
-        auto lchild = top_node->lchild(i),       
-             rchild = top_node->rchild(i);       
+        auto lchild = top_node->lchild(),       
+             rchild = top_node->rchild();       
         if (lchild) stack.push_back(lchild);
         if (rchild) stack.push_back(rchild);
     }

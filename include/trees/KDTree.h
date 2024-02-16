@@ -8,6 +8,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
+#include <queue>
 #include "utils/BinTreeNode.h"
 #include "utils/stats.h"
 
@@ -40,44 +41,42 @@ public:
     using PointVec = std::vector<Point<T, Ndim>>;
     using QueueType = std::priority_queue<std::pair<int, T>, std::vector<std::pair<int, T>>, DistanceComp<T>>;
     // pybind initializer (1)
-    KDTree(const pybind11::array_t<T>& bbox_info, size_t max_depth = 0, size_t node_max_point_num = 0, int k = 1, T radius = 0):
+    KDTree(const pybind11::array_t<T>& bbox_info, int max_depth = 0, int node_max_point_num = 0, int k = 1, T radius = 0):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
-        k(k), radius(radius), max_heap(DistanceComp<T>{})
+        k(k), radius(radius)
     {
         all_pts->reserve(64);
         root = std::make_shared<Node>(
             Pointx::from_pointer(bbox_info.data()), 
-            Pointx::from_pointer(bbox_info.data() + Ndim),
-            std::weak_ptr<Node>()
+            Pointx::from_pointer(bbox_info.data() + Ndim)
         );
     }
     
     template <typename Ptype1, typename Ptype2>
-    KDTree(Ptype1&& center, Ptype2&& half_size, size_t max_depth = 0, size_t node_max_point_num = 0, int k = 1, T radius = 0):
+    KDTree(Ptype1&& center, Ptype2&& half_size, int max_depth = 0, int node_max_point_num = 0, int k = 1, T radius = 0):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
-        k(k), radius(radius), max_heap(DistanceComp<T>{})
+        k(k), radius(radius)
     {
         all_pts->reserve(64);
         root = std::make_shared<Node>(
             std::forward<Ptype1>(center), 
-            std::forward<Ptype2>(half_size),
-            std::weak_ptr<Node>()
+            std::forward<Ptype2>(half_size)
         );
     }
 
     // pybind initializer (2)
     KDTree(
         const pybind11::array_t<T>& points, size_t num_points, T border = 0, 
-        size_t max_depth = 0, size_t node_max_point_num = 0, int k = 1, T radius = 0
+        int max_depth = 0, int node_max_point_num = 0, int k = 1, T radius = 0
     ):
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
-        k(k), radius(radius), max_heap(DistanceComp<T>{})
+        k(k), radius(radius)
     {
         all_pts->reserve(num_points);
         const T* ptr = points.data();
@@ -93,8 +92,7 @@ public:
 
         root = std::make_shared<Node>(
             std::move(max_range), 
-            std::move(min_range),
-            std::weak_ptr<Node>()
+            std::move(min_range)
         );
 
         ptr = points.data();
@@ -109,7 +107,7 @@ public:
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
-        k(k), radius(radius), max_heap(DistanceComp<T>{})
+        k(k), radius(radius)
     {
         all_pts->reserve(points.size());
         Pointx min_range = points.front();
@@ -123,8 +121,7 @@ public:
 
         root = std::make_shared<Node>(
             std::move(max_range), 
-            std::move(min_range),
-            std::weak_ptr<Node>()
+            std::move(min_range)
         );
 
         for (const auto& pt: points)
@@ -138,15 +135,14 @@ public:
     template <typename VecType>
     void build_tree(VecType&& points) {
         all_pts = std::make_shared<PointVec>(std::forward<VecType>(points));
-        int num_points = static_cast<int>(all_pts->size()), cur_depth = 0;
+        int num_points = static_cast<int>(all_pts->size());
         root->sub_idxs->reserve(all_pts->size());
         for (int i = 0; i < num_points; i++)
             root->sub_idxs->emplace_back(i);
-        std::vector<std::pair<int, std::shared_ptr<Node>>> node_stack = {
-            std::make_pair<int, std::shared_ptr<Node>>(0, root)
-        };
+        std::vector<std::pair<int, std::shared_ptr<Node>>> node_stack;
+        node_stack.emplace_back(0, root);
         while (!node_stack.empty()) {
-            auto top = node_stack.pop_back();
+            auto top = node_stack.back();
             node_stack.pop_back();
 
             auto && [cur_depth, top_node] = top;
@@ -194,7 +190,7 @@ protected:
     // also, the tree structure can be bad if the maximum number of points in a leaf node is too low
     void recursive_solve(const Pointx& pt, QueueType& queue, std::shared_ptr<Node> cur_node) const;
 
-    static constexpr size_t valid_num_check(size_t value, size_t max_num) {
+    static constexpr int valid_num_check(int value, int max_num) {
         value = (value == 0) ? max_num : value;
         return std::min(max_num, value);
     }
@@ -202,18 +198,18 @@ protected:
     std::shared_ptr<PointVec> all_pts;
     std::shared_ptr<Node> root;
 private:
-    size_t tree_depth{0};
+    int tree_depth{0};
     // maximum depth of the tree (1st priority)
-    const size_t max_depth;
+    const int max_depth;
     // maximum number of point in a node (2nd priority)
-    const size_t node_max_point_num;
+    const int node_max_point_num;
     // number of nearest points to extract
-    int k;
+    mutable int k;
     // radius from which the nearest points are extract
-    T radius;
+    mutable T radius;
 
-    static constexpr size_t MAX_DEPTH    = 32;                         // physical barrier
-    static constexpr size_t MAX_NODE_NUM = 64;                         // physical barrier
+    static constexpr int MAX_DEPTH    = 32;                         // physical barrier
+    static constexpr int MAX_NODE_NUM = 64;                         // physical barrier
 };
 
 /**

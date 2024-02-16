@@ -57,8 +57,8 @@ public:
         std::vector<int>&& idxs,
         SplitAxis axis = SplitAxis::NONE, Ty split_pos = 0 
     ): center(std::forward<Ptype1>(center)), half_size(std::forward<Ptype2>(size)), 
-        sub_idxs(std::make_unique<std::vector<int>>(std::move(idxs))),
-        split_axis(axis), split_pos(split_pos)
+        split_axis(axis), split_pos(split_pos),
+        sub_idxs(std::make_unique<std::vector<int>>(std::move(idxs)))
     {
         num_points = static_cast<int>(sub_idxs->size());
         #ifdef BIN_TREE_NODE_MEMORY_PROFILE
@@ -119,7 +119,7 @@ public:
      * @param query:       top right corner of the search range (size + radius)
     */ 
     template <typename PointType>
-    bool nearest_child(PointType&& query) const {
+    std::shared_ptr<BinTreeNode> nearest_child(PointType&& query) const {
         Ty diff_l = (_lchild->center - query).length2(),
            diff_r = (_rchild->center - query).length2();
         return diff_l <= diff_r ? _lchild : _rchild;
@@ -139,7 +139,6 @@ public:
         return nearest_child(std::forward<PointType>(query));
     }
 
-    template <typename PointType>
     std::shared_ptr<BinTreeNode> the_other(const BinTreeNode* const node_ptr) const {
         if (_lchild.get() == node_ptr)
             return _rchild;
@@ -169,8 +168,8 @@ public:
         // make the current node a leaf node (when sub_idxs is not a nullptr)
         sub_idxs = std::make_unique<std::vector<int>>();
         split_axis = SplitAxis::NONE;
-        _lchild.reset(nullptr);
-        _rchild.reset(nullptr);
+        _lchild.reset();
+        _rchild.reset();
     }
 
     void set_non_leaf() noexcept {
@@ -187,14 +186,13 @@ public:
 
     // number of points stored in the subtree
     int num_points;
+    std::unique_ptr<std::vector<int>> sub_idxs;
 private:
     size_t get_size() const;
 protected:
     std::shared_ptr<BinTreeNode> _lchild;
     std::shared_ptr<BinTreeNode> _rchild;
-
     // indices will only be stored in the leaf nodes (for non-leaf nodes, this is a nullptr)
-    std::unique_ptr<std::vector<int>> sub_idxs;
 };
 
 template<typename T>

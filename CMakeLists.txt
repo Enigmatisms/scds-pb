@@ -50,6 +50,7 @@ include_directories(
    /usr/local/include/
    # ${PCL_INCLUDE_DIRS}
    ${Python_INCLUDE_DIRS}
+   ${EIGEN3_INCLUDE_DIR}
 )
 
 link_directories(/usr/local/lib)

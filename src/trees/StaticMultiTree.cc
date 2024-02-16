@@ -132,7 +132,7 @@ void StaticMultiTree<T, Ndim, Nchild>::insert(const Pointx& pt) {
                 same_child = false;
                 size_t next_child_id = 0;
                 for (size_t i = 0; i < Nchild; i++) {
-                    if (sub_sets[i].size() > node_max_point_num) {
+                    if (static_cast<int>(sub_sets[i].size()) > node_max_point_num) {
                         same_child = true;
                         next_child_id  = i;
                     }
