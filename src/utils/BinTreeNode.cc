@@ -5,8 +5,8 @@ namespace scds {
 template<typename Ty, size_t Ndim>
 SplitAxis BinTreeNode<Ty, Ndim>::max_extent_axis(const std::vector<Pointx>& pts) const {
     Pointx maxi = pts[sub_idxs->front()], mini = maxi;
-    for (size_t i = 1; i < sub_idxs.size(); i++) {
-        const Pointx& pt = pts[sub_idxs[i]];
+    for (size_t i = 1; i < sub_idxs->size(); i++) {
+        const Pointx& pt = pts[sub_idxs->at(i)];
         maxi = maxi.max(pt);
         mini = mini.min(pt);
     }
@@ -30,7 +30,8 @@ void BinTreeNode<Ty, Ndim>::split_leaf_node(const std::vector<Pointx>& pts) {
     // get split pos using nth_element
     auto center_it = pts.begin() + (pts.size() >> 1);
     auto comp_op = [axis](const Pointx& p1, const Pointx& p2) {return p1[axis] < p2[axis];};
-    auto elem_1 = std::nth_element(pts.begin(), center_it, pts.end(), comp_op),
+    // this is not correct (huge problem)
+    std::vector<Pointx>::iterator elem_1 = std::nth_element(pts.begin(), center_it, pts.end(), comp_op),
          elem_2 = std::nth_element(pts.begin(), center_it + 1, pts.end(), comp_op);
     this->split_pos = 0.5 * ((*elem_1)[axis] + (*elem_2)[axis]);
     std::vector<int> lcontainer, rcontainer;
@@ -40,7 +41,7 @@ void BinTreeNode<Ty, Ndim>::split_leaf_node(const std::vector<Pointx>& pts) {
         else
             rcontainer.push_back(idx);
     }
-    Ty lsize = (half_size[axis] - center[axis] + split_pos) / 2, rsize = half_size - lsize,
+    Ty lsize = (half_size[axis] - center[axis] + split_pos) / 2, rsize = half_size[axis] - lsize,
        lpos  = split_pos - lsize, rpos = split_pos + rsize;
     Pointx l_ctr = this->center, r_ctr = this->center,
            l_size = this->half_size, r_size = this->half_size;

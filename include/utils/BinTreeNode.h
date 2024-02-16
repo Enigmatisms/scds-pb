@@ -8,15 +8,8 @@
 namespace scds {
 
 /**
- * Notes from PBR-book (4.4 Kd-Tree): about (1) save memory (2) continous memory block can improve cache performance
- * > Rather than storing two pointers or offsets, we lay the nodes out in a way that lets us only store one child pointer:
- * all of the nodes are allocated in a single contiguous block of memory, and the child of an interior node that is
- * responsible for space below the splitting plane is always stored in the array position immediately after its parent
- * (this layout also improves cache performance, by keeping at least one child close to its parent in memory)
- * 
- * I did this before, for BVH tree (linearize the tree, since they are binary, easy to derive)
- * I suspect that here we can do the same optimization, but I will stick to the simpler version first
- * Then I might go back and try to improve this
+ * k-d tree for points
+ * A better tree representation for binary tree is possible (linearized)
 */
 
 #define BIN_TREE_NODE_MEMORY_PROFILE
@@ -34,7 +27,7 @@ enum SplitAxis: int {
 };
 
 template<typename Ty, size_t Ndim>
-class BinTreeNode : public std::enable_shared_from_this<BinTreeNode<Ty, Ndim>> {
+class BinTreeNode {
 using Pointx = Point<Ty, Ndim>;
 using This   = BinTreeNode<Ty, Ndim>;
 public:
@@ -46,9 +39,8 @@ public:
     template <typename Ptype1, typename Ptype2>
     BinTreeNode(
         Ptype1&& center, Ptype2&& size, 
-        std::weak_ptr<TreeNode> parent,
         SplitAxis axis = SplitAxis::NONE, Ty split_pos = 0 
-    ): center(std::forward<Ptype1>(center)), half_size(std::forward<Ptype2>(size)), parent(parent),
+    ): center(std::forward<Ptype1>(center)), half_size(std::forward<Ptype2>(size)),
         split_axis(axis), split_pos(split_pos), num_points(0) 
     {
         sub_idxs = std::make_unique<std::vector<int>>();
@@ -63,11 +55,10 @@ public:
     BinTreeNode(
         Ptype1&& center, Ptype2&& size, 
         std::vector<int>&& idxs,
-        std::weak_ptr<TreeNode> parent,
         SplitAxis axis = SplitAxis::NONE, Ty split_pos = 0 
     ): center(std::forward<Ptype1>(center)), half_size(std::forward<Ptype2>(size)), 
         sub_idxs(std::make_unique<std::vector<int>>(std::move(idxs))),
-        parent(parent), split_axis(axis), split_pos(split_pos), 
+        split_axis(axis), split_pos(split_pos)
     {
         num_points = static_cast<int>(sub_idxs->size());
         #ifdef BIN_TREE_NODE_MEMORY_PROFILE
@@ -87,12 +78,12 @@ public:
 
     void split_leaf_node(const std::vector<Pointx>& pts);
     
-    std::shared_ptr<TreeNode> lchild() {
+    std::shared_ptr<BinTreeNode> lchild() {
         return _lchild;
     }
 
-    std::shared_ptr<TreeNode> rchild() {
-        return _lchild;
+    std::shared_ptr<BinTreeNode> rchild() {
+        return _rchild;
     }
 
     // get the indices stored in the node
@@ -114,7 +105,6 @@ public:
                 std::forward<Ptype1>(ctr), 
                 std::forward<Ptype2>(new_size), 
                 std::move(pt_idxs), 
-                this->shared_from_this(),
                 split_axis, split_pos
             );
             if (is_left)
@@ -179,8 +169,8 @@ public:
         // make the current node a leaf node (when sub_idxs is not a nullptr)
         sub_idxs = std::make_unique<std::vector<int>>();
         split_axis = SplitAxis::NONE;
-        lchild.reset(nullptr);
-        rchild.reset(nullptr);
+        _lchild.reset(nullptr);
+        _rchild.reset(nullptr);
     }
 
     void set_non_leaf() noexcept {
@@ -205,9 +195,6 @@ protected:
 
     // indices will only be stored in the leaf nodes (for non-leaf nodes, this is a nullptr)
     std::unique_ptr<std::vector<int>> sub_idxs;
-
-    // pointer to the parent
-    std::weak_ptr<BinTreeNode> parent;
 };
 
 template<typename T>

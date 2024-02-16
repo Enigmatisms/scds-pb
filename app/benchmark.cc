@@ -1,5 +1,3 @@
-#include <pcl/octree/octree.h>
-
 #include <iostream>
 #include <random>
 #include "utils/stats.h"

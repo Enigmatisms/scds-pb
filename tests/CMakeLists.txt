@@ -30,5 +30,9 @@ add_executable(quad_tree quad_tree.cc
     ${UTILS_SRC} ${TREES_SRC}
 )
 
+add_executable(kdtree kdtree.cc
+    ${UTILS_SRC} ${TREES_SRC}
+)
+
 target_link_libraries(quad_tree PRIVATE fmt::fmt pybind11::module ${PYTHON_LIBRARIES} Python::Python)
 

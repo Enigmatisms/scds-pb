@@ -68,10 +68,10 @@ void KDTree<T, Ndim>::insert(const Pointx& pt) {
     do {
         ptr->num_points++;
         if (cur_depth < max_depth && ptr->num_points > node_max_point_num) {
+            tree_depth = std::max(tree_depth, cur_depth ++) + 1;
             if (!ptr->is_leaf()) {
                 // find the child leaf the new point should reside in
                 ptr = top_node->resident_child(pt, radius);
-                tree_depth = std::max(tree_depth, cur_depth ++) + 1;
                 continue;
             }
             // When the current node should be splitted (maximum point riched)
@@ -84,6 +84,17 @@ void KDTree<T, Ndim>::insert(const Pointx& pt) {
         }
     } while (true);
     
+}
+
+template<typename T, size_t Ndim>
+void KDTree<T, Ndim>::build_tree_py(const pybind11::array_t<T>& pts) {
+    const size_t num_pts = pt.shape()[0];
+    std::vector<Pointx> points;
+    points.reserve(num_pts);
+    const T* ptr = pt.data();
+    for (size_t i = 0; i < num_pts; i++, ptr += Ndim)
+        points.emplace_back(Pointx::from_pointer(ptr));
+    build_tree(std::move(points));
 }
 
 template<typename T, size_t Ndim>
@@ -126,7 +137,7 @@ pybind11::array_t<T> KDTree<T, Ndim>::search_nn_py(const pybind11::array_t<T>& p
 
 template<typename T, size_t Ndim>
 pybind11::tuple KDTree<T, Ndim>::get_tree_structure() const {
-    static_assert(Ndim < 4, "Visualizing 4+ dimension is point less.");
+    static_assert(Ndim < 4, "Visualizing 4+ dimension is pointless.");
     using NodePtr = std::shared_ptr<Node>;
     std::vector<NodePtr> stack;
     stack.reserve(32);
@@ -149,11 +160,10 @@ pybind11::tuple KDTree<T, Ndim>::get_tree_structure() const {
         else
             non_leaf_nodes.push_back(node_range);
         stack.pop_back();
-        for (size_t i = 0; i < Nchild; i++) {
-            auto child = top_node->get_child(i);       
-            if (!child) continue;
-            stack.push_back(child);
-        }
+        auto lchild = top_node->lchild(i),       
+             rchild = top_node->rchild(i);       
+        if (lchild) stack.push_back(lchild);
+        if (rchild) stack.push_back(rchild);
     }
     pybind11::array_t<T> non_leaf_nodes_py = create_array_2d<T>(non_leaf_nodes.size(), Ndim2);
     pybind11::array_t<T> leaf_nodes_py     = create_array_2d<T>(leaf_nodes.size(), Ndim2);

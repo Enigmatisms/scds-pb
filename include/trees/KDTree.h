@@ -34,7 +34,6 @@ struct DistanceComp {
 */
 template <typename T, size_t Ndim>
 class KDTree {
-
 public:
     using Node     = BinTreeNode<T, Ndim>;
     using Pointx   = Point<T, Ndim>;
@@ -135,6 +134,31 @@ public:
     // insert point in the tree
     void insert(const Pointx& pt);
 
+    // build the tree from a large number of points
+    template <typename VecType>
+    void build_tree(VecType&& points) {
+        all_pts = std::make_shared<PointVec>(std::forward<VecType>(points));
+        int num_points = static_cast<int>(all_pts->size()), cur_depth = 0;
+        root->sub_idxs->reserve(all_pts->size());
+        for (int i = 0; i < num_points; i++)
+            root->sub_idxs->emplace_back(i);
+        std::vector<std::pair<int, std::shared_ptr<Node>>> node_stack = {
+            std::make_pair<int, std::shared_ptr<Node>>(0, root)
+        };
+        while (!node_stack.empty()) {
+            auto top = node_stack.pop_back();
+            node_stack.pop_back();
+
+            auto && [cur_depth, top_node] = top;
+            tree_depth = std::max(tree_depth, cur_depth) + 1;
+            if (cur_depth < max_depth && top_node->num_points > node_max_point_num) {
+                top_node->split_leaf_node(*all_pts);
+                node_stack.push_back(std::make_pair<int, std::shared_ptr<Node>>(cur_depth + 1, top_node->lchild()));
+                node_stack.push_back(std::make_pair<int, std::shared_ptr<Node>>(cur_depth + 1, top_node->rchild()));
+            }
+        }
+    }
+
     /**
      * @brief Nearest neighbor search in the K-D-tree, note that k-d tree does not rely on search radius strictly
      * @param pt:     point to search around
@@ -145,7 +169,6 @@ public:
     */
     void search_nn(const Pointx& pt, PointVec& nn, int k = 1, T radius = 0) const;
 
-    void recursive_solve(const Pointx& pt, QueueType& queue, std::shared_ptr<Node> cur_node) const;
 
     int size() const {
         return root ? root->num_points : 0;
@@ -157,6 +180,8 @@ public:
 public:     // python binding
     void insert_py(const pybind11::array_t<T>& pt);
 
+    void build_tree_py(const pybind11::array_t<T>& pts);
+
     pybind11::array_t<T> search_nn_py(const pybind11::array_t<T>& pt, int k = 1, T radius = 0) const;
 
     // get the structure of the tree
@@ -165,6 +190,10 @@ public:     // python binding
     int size_py() const {return static_cast<int>(root ? root->num_points : 0);}
     int depth_py() const {return static_cast<int>(this->tree_depth);}
 protected:
+    // incremental tree construction (might not be efficient, since this is recursive)
+    // also, the tree structure can be bad if the maximum number of points in a leaf node is too low
+    void recursive_solve(const Pointx& pt, QueueType& queue, std::shared_ptr<Node> cur_node) const;
+
     static constexpr size_t valid_num_check(size_t value, size_t max_num) {
         value = (value == 0) ? max_num : value;
         return std::min(max_num, value);
