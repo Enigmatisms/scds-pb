@@ -97,7 +97,7 @@ public:
     template <typename Ptype1, typename Ptype2>
     auto add_child(
         Ptype1&& ctr, Ptype2&& new_size, std::vector<int>&& pt_idxs, 
-        bool is_left = false, SplitAxis axis = SplitAxis::NONE, Ty split_pos = 0 
+        bool is_left = false, SplitAxis _split_axis = SplitAxis::NONE, Ty _split_pos = 0 
     ) {
         ProfilePhase _(Prof::TreeNodeAddChild);
         {
@@ -105,7 +105,7 @@ public:
                 std::forward<Ptype1>(ctr), 
                 std::forward<Ptype2>(new_size), 
                 std::move(pt_idxs), 
-                split_axis, split_pos
+                _split_axis, _split_pos
             );
             if (is_left)
                 _lchild = std::move(new_child);
@@ -146,18 +146,6 @@ public:
             return _lchild;
         std::cerr << "node_ptr is not the child ptr of the current node." << std::endl;
         return {nullptr};
-    }
-
-    void overwrite_sub_idxs(std::vector<int>&& src) {
-        #ifdef BIN_TREE_NODE_MEMORY_PROFILE
-            if (sub_idxs) {
-                auto size_of_set = sizeof(this->sub_idxs->size() * sizeof(int)) + sizeof(sub_idxs);
-                binTreeBytes -= size_of_set;
-            }
-            binTreeBytes += sizeof(src.size() * sizeof(int)) + sizeof(src);
-        #endif //BIN_TREE_NODE_MEMORY_PROFILE
-        sub_idxs = std::make_unique<std::vector<int>>(std::move(src));
-        num_points = static_cast<int>(sub_idxs->size());
     }
 
     bool is_leaf() const noexcept {

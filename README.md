@@ -4,4 +4,4 @@
 Currently supported features:
 
 - CPU end: Static-Multi-Tree (like Quad, Oct-Tree): dynamic insert (deletion not supported yet), fully templated (with visualization). C++/Python API
-- CPU end: k-d Tree: not yet fully tested, dynamic insert (deletion not supported yet). C++/Python API.
+- CPU end: k-d Tree: tested, dynamic insert (deletion not supported yet). C++/Python API. Even faster than Quad-tree (5-10x).

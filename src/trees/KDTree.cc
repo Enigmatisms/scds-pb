@@ -10,12 +10,12 @@ void KDTree<T, Ndim>::recursive_solve(const Pointx& pt, QueueType& queue, std::s
     if (!cur_node->is_leaf()) {
         auto res_child = cur_node->resident_child(pt);
         recursive_solve(pt, queue, res_child);
-        T axial_diff = std::abs(pt[cur_node->split_axis] - cur_node->split_pos);
-        if (!queue.empty() && queue.top().second > axial_diff) {
+        T axial_diff = pt[cur_node->split_axis] - cur_node->split_pos;
+        axial_diff *= axial_diff;
+        if ((!queue.empty() && queue.top().second > axial_diff) || (static_cast<int>(queue.size()) < k && axial_diff < radius2)) {
             recursive_solve(pt, queue, cur_node->the_other(res_child.get()));
         }
     } else {        // leaf node: traverse all the points in the node
-        T radius2 = radius * radius;
         for (int pt_idx: cur_node->get_indices()) {
             T distance2  = ((*all_pts)[pt_idx] - pt).length2();
             if (distance2 > radius2) continue;
@@ -40,6 +40,7 @@ void KDTree<T, Ndim>::search_nn(const Pointx& pt, PointVec& nn, int k, T radius)
     }
     this->k = k;
     this->radius = radius;
+    this->radius2 = radius * radius;
 
     QueueType max_heap(DistanceComp<T>{});
 

@@ -1,18 +1,37 @@
 # staticMultiTree (SMT) python binding
+
+
+# ============== pybind11 python module declaration ===================
 set(SMT_TEST_SOURCES 
     ../src/trees/StaticMultiTree.cc
     ../src/bindings/smtBinding.cc
     ../src/utils/TreeNode.cc
     ../src/utils/stats.cc
 )
-pybind11_add_module(smt ${SMT_TEST_SOURCES})
 
+pybind11_add_module(smt ${SMT_TEST_SOURCES})
 target_include_directories(smt PRIVATE 
     ../ext/fmt/include/
     ${Python_INCLUDE_DIRS}
 )
 target_link_libraries(smt PRIVATE fmt::fmt pybind11::module ${PYTHON_LIBRARIES} Python::Python)
 set_target_properties(smt PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" SUFFIX "${PYTHON_MODULE_EXTENSION}")
+
+set(KDT_TEST_SOURCES 
+    ../src/trees/KDTree.cc
+    ../src/bindings/kdtBinding.cc
+    ../src/utils/BinTreeNode.cc
+    ../src/utils/stats.cc
+)
+
+pybind11_add_module(kdt ${KDT_TEST_SOURCES})
+target_include_directories(kdt PRIVATE 
+    ../ext/fmt/include/
+    ${Python_INCLUDE_DIRS}
+)
+target_link_libraries(kdt PRIVATE fmt::fmt pybind11::module ${PYTHON_LIBRARIES} Python::Python)
+set_target_properties(kdt PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" SUFFIX "${PYTHON_MODULE_EXTENSION}")
+# ============== end of module declaration ===================
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
 

@@ -6,9 +6,9 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(smt, m) {
+PYBIND11_MODULE(smt, smt_module) {
 
-    m.doc() = "Static multi-tree python binding (Quad/Oct trees)\n";
+    smt_module.doc() = "Static multi-tree python binding (Quad/Oct trees)\n";
 
     const char* SIZE_DOC = \
         "size():\n"
@@ -51,7 +51,7 @@ PYBIND11_MODULE(smt, m) {
         "(Brute-force) Find at most k nearest neighbors with specified (see `search_nn` for more info)"
     ;
 
-    py::class_<scds::StaticMultiTree<float, 2, 4>>(m, "QuadTreef")
+    py::class_<scds::StaticMultiTree<float, 2, 4>>(smt_module, "QuadTreef")
         .def(py::init<const py::array_t<float>&, size_t, size_t>())
         .def(py::init<const py::array_t<float>&, size_t, float, size_t, size_t>())
         .def("size", &scds::StaticMultiTree<float, 2, 4>::size_py, SIZE_DOC)
@@ -62,7 +62,7 @@ PYBIND11_MODULE(smt, m) {
         .def("tree_structure", &scds::StaticMultiTree<float, 2, 4>::get_tree_structure, TREE_STRUCTURE_DOC);
     
 
-    py::class_<scds::StaticMultiTree<float, 3, 8>>(m, "OctTreef")
+    py::class_<scds::StaticMultiTree<float, 3, 8>>(smt_module, "OctTreef")
         .def(py::init<const py::array_t<float>&, size_t, size_t>())
         .def(py::init<const py::array_t<float>&, size_t, float, size_t, size_t>())
         .def("size", &scds::StaticMultiTree<float, 3, 8>::size_py, SIZE_DOC)
@@ -72,7 +72,7 @@ PYBIND11_MODULE(smt, m) {
         .def("search_nn_bf", &scds::StaticMultiTree<float, 3, 8>::search_nn_bf_py, SEARCH_NN_BF_DOC)
         .def("tree_structure", &scds::StaticMultiTree<float, 3, 8>::get_tree_structure, TREE_STRUCTURE_DOC);
 
-    py::class_<scds::StaticMultiTree<double, 2, 4>>(m, "QuadTreed")
+    py::class_<scds::StaticMultiTree<double, 2, 4>>(smt_module, "QuadTreed")
         .def(py::init<const py::array_t<double>&, size_t, size_t>())
         .def(py::init<const py::array_t<double>&, size_t, double, size_t, size_t>())
         .def("size", &scds::StaticMultiTree<double, 2, 4>::size_py, SIZE_DOC)
@@ -82,7 +82,7 @@ PYBIND11_MODULE(smt, m) {
         .def("search_nn_bf", &scds::StaticMultiTree<double, 2, 4>::search_nn_bf_py, SEARCH_NN_BF_DOC)
         .def("tree_structure", &scds::StaticMultiTree<double, 2, 4>::get_tree_structure, TREE_STRUCTURE_DOC);
 
-    py::class_<scds::StaticMultiTree<double, 3, 8>>(m, "OctTreed")
+    py::class_<scds::StaticMultiTree<double, 3, 8>>(smt_module, "OctTreed")
         .def(py::init<const py::array_t<double>&, size_t, size_t>())
         .def(py::init<const py::array_t<double>&, size_t, double, size_t, size_t>())
         .def("size", &scds::StaticMultiTree<double, 3, 8>::size_py, SIZE_DOC)

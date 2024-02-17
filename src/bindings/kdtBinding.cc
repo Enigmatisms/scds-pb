@@ -6,9 +6,9 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(smt, m) {
+PYBIND11_MODULE(kdt, kdtree_module) {
 
-    m.doc() = "k-d tree python binding\n";
+    kdtree_module.doc() = "k-d tree python binding\n";
 
     const char* SIZE_DOC = \
         "size():\n"
@@ -52,9 +52,9 @@ PYBIND11_MODULE(smt, m) {
         "the points returned are ordered by distance to `pt` (descending)"
     ;
 
-    py::class_<scds::KDTree<float, 2>>(m, "QuadTreef")
-        .def(py::init<const py::array_t<float>&, size_t, size_t>())
-        .def(py::init<const py::array_t<float>&, size_t, float, size_t, size_t>())
+    py::class_<scds::KDTree<float, 2>>(kdtree_module, "KDTree2f")
+        .def(py::init<const py::array_t<float>&, int, int, int, float>(), py::arg("bbox_info"), py::arg("max_depth") = 0, py::arg("node_max_point_num") = 1, py::arg("k") = 1, py::arg("radius") = 0)
+        .def(py::init<const py::array_t<float>&, size_t, float, int, int, int, float>())
         .def("size", &scds::KDTree<float, 2>::size_py, SIZE_DOC)
         .def("depth", &scds::KDTree<float, 2>::depth_py, DEPTH_DOC)
         .def("insert", &scds::KDTree<float, 2>::insert_py, INSERT_DOC)
@@ -63,9 +63,9 @@ PYBIND11_MODULE(smt, m) {
         .def("tree_structure", &scds::KDTree<float, 2>::get_tree_structure, TREE_STRUCTURE_DOC);
     
 
-    py::class_<scds::KDTree<float, 3>>(m, "OctTreef")
-        .def(py::init<const py::array_t<float>&, size_t, size_t>())
-        .def(py::init<const py::array_t<float>&, size_t, float, size_t, size_t>())
+    py::class_<scds::KDTree<float, 3>>(kdtree_module, "KDTree3f")
+        .def(py::init<const py::array_t<float>&, int, int, int, float>())
+        .def(py::init<const py::array_t<float>&, size_t, float, int, int, int, float>())
         .def("size", &scds::KDTree<float, 3>::size_py, SIZE_DOC)
         .def("depth", &scds::KDTree<float, 3>::depth_py, DEPTH_DOC)
         .def("insert", &scds::KDTree<float, 3>::insert_py, INSERT_DOC)
@@ -73,9 +73,9 @@ PYBIND11_MODULE(smt, m) {
         .def("build_tree", &scds::KDTree<float, 3>::build_tree_py, BUILD_TREE_DOC)
         .def("tree_structure", &scds::KDTree<float, 3>::get_tree_structure, TREE_STRUCTURE_DOC);
 
-    py::class_<scds::KDTree<double, 2>>(m, "QuadTreed")
-        .def(py::init<const py::array_t<double>&, size_t, size_t>())
-        .def(py::init<const py::array_t<double>&, size_t, double, size_t, size_t>())
+    py::class_<scds::KDTree<double, 2>>(kdtree_module, "KDTree2d")
+        .def(py::init<const py::array_t<double>&, int, int, int, double>())
+        .def(py::init<const py::array_t<double>&, size_t, double, int, int, int, float>())
         .def("size", &scds::KDTree<double, 2>::size_py, SIZE_DOC)
         .def("depth", &scds::KDTree<double, 2>::depth_py, DEPTH_DOC)
         .def("insert", &scds::KDTree<double, 2>::insert_py, INSERT_DOC)
@@ -83,9 +83,9 @@ PYBIND11_MODULE(smt, m) {
         .def("build_tree", &scds::KDTree<double, 2>::build_tree_py, BUILD_TREE_DOC)
         .def("tree_structure", &scds::KDTree<double, 2>::get_tree_structure, TREE_STRUCTURE_DOC);
 
-    py::class_<scds::KDTree<double, 3>>(m, "OctTreed")
-        .def(py::init<const py::array_t<double>&, size_t, size_t>())
-        .def(py::init<const py::array_t<double>&, size_t, double, size_t, size_t>())
+    py::class_<scds::KDTree<double, 3>>(kdtree_module, "KDTree3d")
+        .def(py::init<const py::array_t<double>&, int, int, int, double>())
+        .def(py::init<const py::array_t<double>&, size_t, double, int, int, int, float>())
         .def("size", &scds::KDTree<double, 3>::size_py, SIZE_DOC)
         .def("depth", &scds::KDTree<double, 3>::depth_py, DEPTH_DOC)
         .def("insert", &scds::KDTree<double, 3>::insert_py, INSERT_DOC)

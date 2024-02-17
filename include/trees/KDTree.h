@@ -45,7 +45,7 @@ public:
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
-        k(k), radius(radius)
+        k(k), radius(radius), radius2(radius * radius)
     {
         all_pts->reserve(64);
         root = std::make_shared<Node>(
@@ -59,7 +59,7 @@ public:
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
-        k(k), radius(radius)
+        k(k), radius(radius), radius2(radius * radius)
     {
         all_pts->reserve(64);
         root = std::make_shared<Node>(
@@ -76,7 +76,7 @@ public:
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
-        k(k), radius(radius)
+        k(k), radius(radius), radius2(radius * radius)
     {
         all_pts->reserve(num_points);
         const T* ptr = points.data();
@@ -107,7 +107,7 @@ public:
         all_pts(std::make_shared<PointVec>()),
         max_depth(valid_num_check(max_depth, MAX_DEPTH)), 
         node_max_point_num(valid_num_check(node_max_point_num, MAX_NODE_NUM)),
-        k(k), radius(radius)
+        k(k), radius(radius), radius2(radius * radius)
     {
         all_pts->reserve(points.size());
         Pointx min_range = points.front();
@@ -136,6 +136,7 @@ public:
     void build_tree(VecType&& points) {
         all_pts = std::make_shared<PointVec>(std::forward<VecType>(points));
         int num_points = static_cast<int>(all_pts->size());
+        root->num_points = num_points;
         root->sub_idxs->reserve(all_pts->size());
         for (int i = 0; i < num_points; i++)
             root->sub_idxs->emplace_back(i);
@@ -146,11 +147,11 @@ public:
             node_stack.pop_back();
 
             auto && [cur_depth, top_node] = top;
-            tree_depth = std::max(tree_depth, cur_depth) + 1;
+            tree_depth = std::max(tree_depth, cur_depth);
             if (cur_depth < max_depth && top_node->num_points > node_max_point_num) {
                 top_node->split_leaf_node(*all_pts);
-                node_stack.push_back(std::make_pair<int, std::shared_ptr<Node>>(cur_depth + 1, top_node->lchild()));
-                node_stack.push_back(std::make_pair<int, std::shared_ptr<Node>>(cur_depth + 1, top_node->rchild()));
+                node_stack.emplace_back(cur_depth + 1, top_node->lchild());
+                node_stack.emplace_back(cur_depth + 1, top_node->rchild());
             }
         }
     }
@@ -207,6 +208,7 @@ private:
     mutable int k;
     // radius from which the nearest points are extract
     mutable T radius;
+    mutable T radius2;
 
     static constexpr int MAX_DEPTH    = 32;                         // physical barrier
     static constexpr int MAX_NODE_NUM = 64;                         // physical barrier

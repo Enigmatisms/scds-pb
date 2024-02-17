@@ -30,13 +30,13 @@ void BinTreeNode<Ty, Ndim>::split_leaf_node(const std::vector<Pointx>& pts) {
     // get split pos using nth_element
     auto comp_op = [axis, &pts](int index_1, int index_2) {return pts[index_1][axis] < pts[index_2][axis];};
 
-    std::nth_element(sub_idxs->begin(), sub_idxs->begin() + (sub_idxs->size() >> 1), sub_idxs->end(), comp_op);
-    int index_1 = *(sub_idxs->begin() + (sub_idxs->size() >> 1));
+    int half_num = static_cast<int>(sub_idxs->size() - 1) >> 1;
+    std::nth_element(sub_idxs->begin(), sub_idxs->begin() + half_num, sub_idxs->end(), comp_op);
+    int index_1 = *(sub_idxs->begin() + half_num);
+    std::nth_element(sub_idxs->begin(), sub_idxs->begin() + half_num + 1, sub_idxs->end(), comp_op);
+    int index_2 = *(sub_idxs->begin() + half_num + 1);
 
-    std::nth_element(sub_idxs->begin(), sub_idxs->begin() + (sub_idxs->size() >> 1) + 1, sub_idxs->end(), comp_op);
-    int index_2 = *(sub_idxs->begin() + (sub_idxs->size() >> 1) + 1);
-
-    this->split_pos = 0.5 * (pts[index_1][axis] + pts[index_2][axis]);
+    this->split_pos = (pts[index_1][axis] + pts[index_2][axis]) * static_cast<Ty>(0.5);
 
     std::vector<int> lcontainer, rcontainer;
     for (int idx: *sub_idxs) {
@@ -45,6 +45,7 @@ void BinTreeNode<Ty, Ndim>::split_leaf_node(const std::vector<Pointx>& pts) {
         else
             rcontainer.push_back(idx);
     }
+    sub_idxs.reset(nullptr);
     Ty lsize = (half_size[axis] - center[axis] + split_pos) / 2, rsize = half_size[axis] - lsize,
        lpos  = split_pos - lsize, rpos = split_pos + rsize;
     Pointx l_ctr = this->center, r_ctr = this->center,
