@@ -30,3 +30,6 @@
 !ext
 !ext/fmt
 !ext/pybind11
+
+!assets/
+!assets/*.png
