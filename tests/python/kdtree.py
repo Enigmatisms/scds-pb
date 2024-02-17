@@ -61,8 +61,8 @@ def full_test():
     n_nearest  = 8
     point_size = 4
     point_per_node = 1    # large scale: 4, small scale: 1
-    num_pts = 1000000      # use 7 to visualize a small-scale test
-    radius  = 0.01         # large scale: 0.01
+    num_pts = 8192      # use 7 to visualize a small-scale test
+    radius  = 0.05         # large scale: 0.01
 
     query_pt = np.float32([0.23, 0.23])
     
@@ -105,8 +105,8 @@ def full_test():
     square = plt.Rectangle(query_pt - radius, radius * 2, radius * 2, color='blue', fill=True, label='Search range', alpha = 0.2)
     ax.add_patch(square)
 
-    ax.scatter(nns[:, 0], nns[:, 1], s = point_size << 1, color = 'r', label = 'Nearest neighbors')
-    ax.scatter(nns_bf[:, 0], nns_bf[:, 1], s = point_size, color = 'g', label = 'Nearest neighbors (BF)')
+    ax.scatter(nns[:, 0], nns[:, 1], s = point_size << 1, color = 'r', label = 'Nearest neighbors (k-d tree)')
+    ax.scatter(nns_bf[:, 0], nns_bf[:, 1], s = point_size, color = 'g', label = 'Nearest neighbors (quad tree)')
 
     plt.xticks([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0])
     plt.yticks([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0])
@@ -117,8 +117,8 @@ def full_test():
     
 def tree_structure_viz():
     point_size = 2
-    point_per_node = 4    # large scale: 4, small scale: 1
-    num_pts = 282          # use 7 to visualize a small-scale test
+    point_per_node = 5    # large scale: 4, small scale: 1
+    num_pts = 1000          # use 7 to visualize a small-scale test
     radius  = 0.1         # large scale: 0.01
 
     query_pt = np.float32([0.23, 0.23])
@@ -139,7 +139,7 @@ def tree_structure_viz():
     non_leaves, leaves = kdtree.tree_structure()
     
     fig, ax = plt.subplots(figsize=(9, 9))
-    ax.scatter(pts[:, 0], pts[:, 1], s = point_size, color = 'k', label = 'Quad Tree Points')
+    ax.scatter(pts[:, 0], pts[:, 1], s = point_size, color = 'k', label = 'K-D Tree Points')
     ax.scatter([query_pt[0]], [query_pt[1]], s = point_size, color = 'b', label = 'Query')
     ax.add_patch(square)
 
@@ -162,5 +162,5 @@ def tree_structure_viz():
 
 if __name__ == "__main__":
     np.random.seed(2)
-    full_test()
-    # tree_structure_viz()
+    # full_test()
+    tree_structure_viz()

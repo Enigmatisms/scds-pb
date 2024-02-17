@@ -5,3 +5,8 @@ Currently supported features:
 
 - CPU end: Static-Multi-Tree (like Quad, Oct-Tree): dynamic insert (deletion not supported yet), fully templated (with visualization). C++/Python API
 - CPU end: k-d Tree: tested, dynamic insert (deletion not supported yet). C++/Python API. Even faster than Quad-tree (5-10x).
+
+| quad-tree space subdivision            | k-d tree space space subdivision  | Nearest neighbor search     |
+| -------------------------------------- | --------------------------------- | --------------------------- |
+| ![](assets/space-subdivision-quad.png) | ![](assets/space-subdivision.png) | ![](assets/search-comp.png) |
+

@@ -111,8 +111,8 @@ def full_test():
     
 def tree_structure_viz():
     point_size = 2
-    point_per_node = 1    # large scale: 4, small scale: 1
-    num_pts = 16          # use 7 to visualize a small-scale test
+    point_per_node = 4    # large scale: 4, small scale: 1
+    num_pts = 1024          # use 7 to visualize a small-scale test
 
     query_pt = np.float32([0.23, 0.23])
     
