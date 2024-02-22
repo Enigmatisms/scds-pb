@@ -21,11 +21,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag(-std=c++17 COMPILER_SUPPORTS_CXX17)
 if(COMPILER_SUPPORTS_CXX17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-add_definitions(-DCOMPILEDWITHC17)
-message(STATUS "Using flag -std=c++17.")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+   add_definitions(-DCOMPILEDWITHC17)
+   message(STATUS "Using flag -std=c++17.")
 else()
-message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
+   message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++17 support. Please use a different C++ compiler.")
 endif()
 
 # find_package(pybind11 CONFIG REQUIRED)
@@ -48,7 +48,6 @@ include_directories(
    ./include
    ./ext/fmt/include/
    /usr/local/include/
-   # ${PCL_INCLUDE_DIRS}
    ${Python_INCLUDE_DIRS}
    ${EIGEN3_INCLUDE_DIR}
 )

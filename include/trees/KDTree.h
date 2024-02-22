@@ -2,7 +2,7 @@
 /**
  * spatial tree (regular parition) CPU / GPU implementation
  * @author: Qianyue He
- * @date:   2023-12-14
+ * @date:   2023-2-9
 */
 
 #include <pybind11/stl.h>

@@ -8,6 +8,7 @@
                 "/usr/include/**",
                 "/usr/local/include/**",
                 "/usr/include/python3.10/**",
+                "~/.conda/envs/ti/include/python3.10",
                 "${workspaceFolder}/include/**",
                 "${workspaceFolder}/ext/fmt/include/**",
                 "${workspaceFolder}/ext/pybind11/include/**"
