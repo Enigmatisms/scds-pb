@@ -4,6 +4,7 @@
 #include <memory>
 #include "Point.h"
 #include "utils/stats.h"
+#include "utils/utils.h"
 
 namespace scds {
 
@@ -18,13 +19,6 @@ STAT_MEMORY_COUNTER("BinTreeNode/Total TreeNode Size", binTreeBytes);
 STAT_COUNTER("BinTreeNode/Node count", binNodeCount);
 STAT_COUNTER("BinTreeNode/Leaf nodes", binLeafNodes);
 #endif // TREE_NOD_MEMORY_PROFILE
-
-enum SplitAxis: int {
-    AXIS_X = 0,
-    AXIS_Y = 1,
-    AXIS_Z = 2,
-    NONE   = 3  
-};
 
 template<typename Ty, size_t Ndim>
 class BinTreeNode {
@@ -41,7 +35,7 @@ public:
         Ptype1&& center, Ptype2&& size, 
         SplitAxis axis = SplitAxis::NONE, Ty split_pos = 0 
     ): center(std::forward<Ptype1>(center)), half_size(std::forward<Ptype2>(size)),
-        split_axis(axis), split_pos(split_pos), num_points(0) 
+        split_axis(axis), split_pos(split_pos), num_elems(0) 
     {
         sub_idxs = std::make_unique<std::vector<int>>();
         #ifdef BIN_TREE_NODE_MEMORY_PROFILE
@@ -60,7 +54,7 @@ public:
         split_axis(axis), split_pos(split_pos),
         sub_idxs(std::make_unique<std::vector<int>>(std::move(idxs)))
     {
-        num_points = static_cast<int>(sub_idxs->size());
+        num_elems = static_cast<int>(sub_idxs->size());
         #ifdef BIN_TREE_NODE_MEMORY_PROFILE
             binNodeCount ++;
             binTreeBytes += this->get_size();
@@ -173,7 +167,7 @@ public:
     Ty split_pos;
 
     // number of points stored in the subtree
-    int num_points;
+    int num_elems;
     std::unique_ptr<std::vector<int>> sub_idxs;
 private:
     size_t get_size() const;

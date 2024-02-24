@@ -67,8 +67,8 @@ void KDTree<T, Ndim>::insert(const Pointx& pt) {
     #endif //SMT_MEMORY_PROFILE
     // This incremental tree construction will be very inefficient (for static multi-tree, it is different)
     do {
-        ptr->num_points++;
-        if (cur_depth < max_depth && ptr->num_points > node_max_point_num) {
+        ptr->num_elems++;
+        if (cur_depth < max_depth && ptr->num_elems > node_max_point_num) {
             tree_depth = std::max(tree_depth, cur_depth ++) + 1;
             if (!ptr->is_leaf()) {
                 // find the child leaf the new point should reside in
@@ -143,8 +143,8 @@ pybind11::tuple KDTree<T, Ndim>::get_tree_structure() const {
     constexpr size_t Ndim2 = Ndim << 1;
 
     std::vector<Point4<T>> non_leaf_nodes, leaf_nodes;
-    non_leaf_nodes.reserve(root->num_points << 1);
-    leaf_nodes.reserve(root->num_points);
+    non_leaf_nodes.reserve(root->num_elems << 1);
+    leaf_nodes.reserve(root->num_elems);
 
     while (!stack.empty()) {
         NodePtr top_node = stack.back();
