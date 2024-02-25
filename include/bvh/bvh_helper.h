@@ -28,7 +28,7 @@ struct AABB {
     }
     /** Review needed: is this good to implement two overload? */
     template <typename Ptype1, typename Ptype2>
-    AABB(cPtype1&& mini, Ptype2&& maxi): mini(std::forward<Ptype1>(mini)), maxi(std::forward<Ptype2>(maxi)) {}
+    AABB(Ptype1&& mini, Ptype2&& maxi): mini(std::forward<Ptype1>(mini)), maxi(std::forward<Ptype2>(maxi)) {}
     AABB(const Eigen::Matrix3<Ty>& primitive, bool is_sphere = false) {
         if (is_sphere) {
             mini = primitive.col(0) - primitive.col(1);
@@ -102,6 +102,11 @@ struct AxisBins {
 
     void push(const BVHInfo<Ty>& bvh) {
         bound += bvh.bound;
+        prim_cnt ++;
+    }
+
+    void push(const AABB<Ty>& aabb) {
+        bound += aabb;
         prim_cnt ++;
     }
 };

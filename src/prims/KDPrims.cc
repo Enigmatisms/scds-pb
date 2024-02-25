@@ -3,28 +3,26 @@
 namespace scds {
 
 constexpr int num_bins = 1;
+constexpr int max_depth_allowed   = 1;
 constexpr int split_node_prim_num = 8;
-constexpr float traverse_cost = 0.1;
+constexpr float traverse_cost = 1;
 
 template <typename Ty>
-int recursive_kd_tree_SAH(KDPrimNode<Ty>* const cur_node, std::vector<AABB<Ty>>& aabb_infos) {
-    AABB fwd_bound, bwd_bound;
-    int seg_idx = 0, child_prim_cnt = 0;                // this index is used for indexing variable `bins`
-    const int prim_num = cur_node->prim_num, base = cur_node->base, max_pos = base + prim_num;
-    Ty min_cost = 5e9, node_prim_cnt = Ty(prim_num), node_inv_area = 1. / cur_node->bound.area();
+void recursive_kd_tree_SAH(KDPrimNode<Ty>* const cur_node, std::vector<AABB<Ty>>& aabb_infos, int depth = 0) {
+    // tree depth constrains and minimum primitive num constrains
+    if (cur_node->num_elems < split_node_prim_num || depth > max_depth_allowed) return;
+    AABB<Ty> fwd_bound, bwd_bound;
+    int child_prim_cnt = 0, seg_bin_idx = 0;
+    Ty min_cost  = 5e9, node_prim_cnt = Ty(cur_node->num_elems), 
+       split_pos = 0, node_inv_area = 1. / cur_node->bound.area();
+    SplitAxis max_axis = NONE;
 
-    // Step 1: decide the axis that expands the maximum extent of space
-    std::vector<Ty> bins;        // bins: from (start_pos + interval) to end_pos
-    // FIXME: the bin bound calculation
-    SplitAxis max_axis = cur_node->max_extent_axis(aabb_infos, bins);
-    if (cur_node->prim_num > split_node_prim_num) {   // SAH
-
+    {   // local scope, destroy bins and idx_bins before the recursive calls
+        std::vector<Ty> bins;
+        std::vector<AxisBins<Ty>> idx_bins;
+        // Step 1: decide the axis that expands the maximum extent of space
         // Step 2: binning the space
-        std::array<AxisBins, num_bins> idx_bins;
-        for (int i = cur_node->base; i < max_pos; i++) {
-            size_t index = std::lower_bound(bins.begin(), bins.end(), aabb_infos[i].axis_centroid(max_axis)) - bins.begin();
-            idx_bins[index].push(aabb_infos[i]);
-        }
+        max_axis = cur_node->max_extent_axis(aabb_infos, bins, idx_bins);
 
         // Step 3: forward-backward linear sweep for heuristic calculation
         std::array<int, num_bins> prim_cnts;
@@ -41,7 +39,6 @@ int recursive_kd_tree_SAH(KDPrimNode<Ty>* const cur_node, std::vector<AABB<Ty>>&
         std::partial_sum(prim_cnts.begin(), prim_cnts.end(), prim_cnts.begin());
 
         // Step 4: use the calculated area to computed the segment boundary
-        int seg_bin_idx = 0;
         for (int i = 0; i < num_bins - 1; i++) {
             Ty cost = traverse_cost + node_inv_area * 
                 (Ty(prim_cnts[i]) * fwd_areas[i] + (node_prim_cnt - (prim_cnts[i])) * bwd_areas[i]);
@@ -50,107 +47,123 @@ int recursive_kd_tree_SAH(KDPrimNode<Ty>* const cur_node, std::vector<AABB<Ty>>&
                 seg_bin_idx = i;
             }
         }
-        // Step 5: reordering the BVH info in the vector to make the segment contiguous (partition around pivot)
-        // FIXME: also, impose the depth constraints
-        if (min_cost < node_prim_cnt) {
-            // FIXME: here we break the sub_idxs of the current node, and create two child node?
-            // FIXME: we don't need to keep track of the offsets? which can be computed only
-            // FIXME: This is not partition here, since one primitive can be observed in bith lchild and rchild
-            std::partition(aabb_infos.begin() + base, aabb_infos.begin() + max_pos,
-                [pivot = bins[seg_bin_idx], dim = max_axis](const BVHInfo& bvh) {
-                    return bvh.centroid[dim] < pivot;
-            });
-            // FIXME: the following might be preserved
-            child_prim_cnt = prim_cnts[seg_bin_idx];
-        }
         fwd_bound.clear();
         bwd_bound.clear();
         for (int i = 0; i <= seg_bin_idx; i++)       // calculate child node bound
             fwd_bound += idx_bins[i].bound;
         for (int i = num_bins - 1; i > seg_bin_idx; i--)
             bwd_bound += idx_bins[i].bound;
-    } else {                                    // equal primitive number
-        seg_idx = (base + max_pos) >> 1;
-        // Step 5: reordering the BVH info in the vector to make the segment contiguous (keep around half of the bvh in lchild)
-        std::nth_element(aabb_infos.begin() + base, aabb_infos.begin() + seg_idx, aabb_infos.begin() + max_pos,
-            [dim = max_axis] (const BVHInfo& bvh1, const BVHInfo& bvh2) {
-                return bvh1.centroid[dim] < bvh2.centroid[dim];
-            }
-        );
-        for (int i = base; i < seg_idx; i++)    // calculate child node bound
-            fwd_bound += aabb_infos[i].bound;
-        for (int i = seg_idx; i < max_pos; i++)
-            bwd_bound += aabb_infos[i].bound;
-        child_prim_cnt = seg_idx - base;        // bvh[seg_idx] will be in rchild
-        Ty split_cost = traverse_cost + node_inv_area * 
-                (fwd_bound.area() * child_prim_cnt + bwd_bound.area() * (node_prim_cnt - child_prim_cnt));
-        if (split_cost >= node_prim_cnt)
-            child_prim_cnt = 0;
+        child_prim_cnt = prim_cnts[seg_bin_idx];
+        split_pos      = bins[seg_bin_idx];
     }
-    if (child_prim_cnt > 0) {             // cost of splitting is less than making this node a leaf node
-        // this should be fixed
+   
+    if (child_prim_cnt > 0 && min_cost < node_prim_cnt) {             // cost of splitting is less than making this node a leaf node
         // Step 5: split the node and initialize the children
-        cur_node->lchild = new BVHNode(base, child_prim_cnt);
-        cur_node->rchild = new BVHNode(base + child_prim_cnt, prim_num - child_prim_cnt);
-
-        cur_node->lchild->bound = fwd_bound;
-        cur_node->rchild->bound = bwd_bound;
-        cur_node->axis = max_axis;
-        // Step 7: start recursive splitting for the children
-        int node_num = 1;
-        if (cur_node->lchild->prim_num > max_node_prim)
-            node_num += recursive_bvh_SAH(cur_node->lchild, aabb_infos);
-        else node_num ++;
-        if (cur_node->rchild->prim_num > max_node_prim)
-            node_num += recursive_bvh_SAH(cur_node->rchild, aabb_infos);
-        else node_num ++;
-        return node_num;
+        cur_node->split_leaf_node(aabb_infos, split_pos, max_axis, std::move(fwd_bound), std::move(bwd_bound));
+        
+        // Step 6: start recursive splitting for the children
+        recursive_kd_tree_SAH(cur_node->lchild(), aabb_infos, depth + 1);
+        recursive_kd_tree_SAH(cur_node->rchild(), aabb_infos, depth + 1);
     } else {
         // This is a leaf node, yet this is the only way that a leaf node contains more than one primitive
-        cur_node->axis = NONE;
-        return 1;
+        cur_node->split_axis = NONE;
+    }
+}
+
+template <typename Ty>
+KDPrimNode<Ty>* kd_tree_root_start(const py::array_t<Ty>& world_min, const py::array_t<Ty>& world_max, int& node_num, std::vector<BVHInfo<Ty>>& bvh_infos) {
+    // Build BVH tree root node and start recursive tree construction
+    std::vector<int> index_vec;
+    std::iota(index_vec.begin(), index_vec.end(), 0);
+    KDPrimNode<Ty>* root_node = new KDPrimNode<Ty>(AABB<Ty>(), std::move(index_vec));
+    // All the indices in the leaf nodes will be linearized as well
+    Eigen::Vector3<Ty> &bound_min = root_node->aabb.mini, &bound_max = root_node->aabb.maxi;
+    const Ty* const min_ptr = world_min.data(0), * const max_ptr = world_max.data(0);
+    for (int i = 0; i < 3; i++) {
+        bound_min(i) = min_ptr[i];
+        bound_max(i) = max_ptr[i];
+    }
+    recursive_kd_tree_SAH(root_node, bvh_infos);
+    return root_node;
+}
+
+// This is the final function call for `bvh_build`
+template <typename Ty>
+int recursive_linearize(KDPrimNode<Ty>* cur_node, std::vector<LinearKdNode<Ty>>& lin_nodes, std::vector<int>& indices, int& num_nodes) {
+    lin_nodes.emplace_back(cur_node);
+    int old_num = num_nodes;
+    num_nodes ++;
+    if (cur_node->is_leaf()) {
+        lin_nodes.back().r_offset   = 0;
+        lin_nodes.back().all_offset = 1;
+        lin_nodes.back().idx_base = static_cast<int>(indices.size());
+        lin_nodes.back().idx_num  = cur_node->num_elems;
+        for (int idx: cur_node->sub_idxs)
+            indices.push_back(idx);
+    } else {
+        lin_nodes.back().idx_base = 0;
+        lin_nodes.back().idx_num  = 0;
+        if (cur_node->lchild() != nullptr) {
+            recursive_linearize(cur_node->lchild(), lin_nodes, std::vector<int>& indices, num_nodes);
+            lin_nodes[old_num].r_offset = num_nodes - old_num;
+        }
+        if (cur_node->rchild() != nullptr) {
+            recursive_linearize(cur_node->rchild(), lin_nodes, std::vector<int>& indices, num_nodes);
+            lin_nodes[old_num].all_offset = num_nodes - old_num;
+        }
     }
 }
 
 template<typename Ty>
-SplitAxis KDPrimNode<Ty>::max_extent_axis(const std::vector<AABB<Ty>>& pts) const {
-    return SplitAxis::NONE;
+SplitAxis KDPrimNode<Ty>::max_extent_axis(
+    const std::vector<AABB<Ty>>& aabbs, 
+    std::vector<Ty>& bins, std::vector<AxisBins<Ty>>& idx_bins
+) const {
+    Vec3 min_ctr, max_ctr;
+    min_ctr.setConstant(1e9);
+    max_ctr.setConstant(-1e9);
+    for (auto index: *(this->sub_idxs)) {
+        min_ctr = min_ctr.cwiseMin(aabbs[index].mini);
+        max_ctr = min_ctr.cwiseMin(aabbs[index].maxi);
+    }
+    Vec3 diff = max_ctr - min_ctr;
+    Ty max_diff = diff(0);
+    int split_axis = 0;
+    for (int i = 1; i < 3; i++) {
+        if (diff(i) > max_diff) {
+            max_diff = diff(i);
+            split_axis = i;
+        }
+    }
+    bins.resize(num_bins);
+    Ty min_r = min_ctr(split_axis) - 0.001, interval = (max_diff + 0.002) / Ty(num_bins);
+    for (size_t i = 0; i < bins.size(); i++) 
+        bins[i] = min_r + interval * static_cast<Ty>(i);
+    for (auto index: *(this->sub_idxs)) {
+        size_t bin_idxs = std::lower_bound(bins.begin(), bins.end(), aabb_infos[index].axis_centroid(split_axis)) - bins.begin();
+        idx_bins[bin_idxs].push(aabb_infos[index]);
+    }
+    return SplitAxis(split_axis);
 }
 
 template<typename Ty>
-void KDPrimNode<Ty>::split_leaf_node(const std::vector<Eigen::Vector3<Ty>>& pts) {
-    // get split axis
-    SplitAxis axis   = max_extent_axis(pts);
-    this->split_axis = axis; 
-    // get split pos using nth_element
-    auto comp_op = [axis, &pts](int index_1, int index_2) {return pts[index_1][axis] < pts[index_2][axis];};
-
-    int half_num = static_cast<int>(sub_idxs->size() - 1) >> 1;
-    std::nth_element(sub_idxs->begin(), sub_idxs->begin() + half_num, sub_idxs->end(), comp_op);
-    int index_1 = *(sub_idxs->begin() + half_num);
-    std::nth_element(sub_idxs->begin(), sub_idxs->begin() + half_num + 1, sub_idxs->end(), comp_op);
-    int index_2 = *(sub_idxs->begin() + half_num + 1);
-
-    this->split_pos = (pts[index_1][axis] + pts[index_2][axis]) * static_cast<Ty>(0.5);
+void KDPrimNode<Ty>::split_leaf_node(
+    const std::vector<AABB<Ty>>& aabbs, Ty split_pos, SplitAxis split_axis,
+    AABB<Ty>&& lchild_aabb, AABB<Ty>&& rchild_aabb
+) {
+    this->split_pos  = split_pos; 
+    this->split_axis = split_axis; 
 
     std::vector<int> lcontainer, rcontainer;
     for (int idx: *sub_idxs) {
-        if (pts[idx][axis] < this->split_pos)
+        if (aabbs[idx].axis_centroid(split_axis) < this->split_pos)
             lcontainer.push_back(idx);
         else
             rcontainer.push_back(idx);
     }
     sub_idxs.reset(nullptr);
-    Ty lsize = (half_size[axis] - center[axis] + split_pos) / 2, rsize = half_size[axis] - lsize,
-       lpos  = split_pos - lsize, rpos = split_pos + rsize;
-    Pointx l_ctr = this->center, r_ctr = this->center,
-           l_size = this->half_size, r_size = this->half_size;
-    l_ctr[axis]  = lpos;
-    l_size[axis] = lsize;
-    r_ctr[axis]  = rpos;
-    r_size[axis] = rsize;
-    add_child(std::move(l_ctr), std::move(l_size), std::move(lcontainer), true);
-    add_child(std::move(r_ctr), std::move(r_size), std::move(rcontainer), false);
+    add_child(std::move(lchild_aabb), std::move(lcontainer), true);
+    add_child(std::move(rchild_aabb), std::move(rcontainer), false);
 }
 
 template<typename Ty>

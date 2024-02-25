@@ -8,8 +8,8 @@
 #include <array>
 #include <vector>
 #include <memory>
-#include "Point.h"
 #include <Eigen/Core>
+#include "Point.h"
 #include "utils/stats.h"
 #include "bvh/bvh_helper.h"
 
@@ -32,14 +32,15 @@ using This = KDPrimNode<Ty>;
 using Vec3 = Eigen::Vector3<Ty>;
 using Mat3 = Eigen::Matrix3<Ty>;
 public:
-    template <typename Ptype1, typename Ptype2>
+    template <typename AABBType>
     KDPrimNode(
-        Ptype1&& mini, Ptype2&& maxi, 
+        AABBType&& aabb, std::vector<int>&& idxs,
         SplitAxis axis = SplitAxis::NONE, Ty split_pos = 0 
-    ): aabb(std::forward<Ptype1>(mini), std::forward<Ptype2>(maxi)),
-        split_axis(axis), split_pos(split_pos), num_elems(0) 
+    ): aabb(std::forward<AABBType>(aabb)),
+        split_axis(axis), split_pos(split_pos), 
+        sub_idxs(std::make_unique<std::vector<int>>(std::move(idxs)))
     {
-        sub_idxs = std::make_unique<std::vector<int>>();
+        num_elems = static_cast<int>(sub_idxs->size());
         #ifdef KD_PRIM_NODE_MEMORY_PROFILE
             primNodeBytes += this->get_size();
             primLeafNodes ++;
@@ -72,7 +73,10 @@ public:
     }
     // query child node with given index. If the queried child is nullptr, return directly.
 
-    void split_leaf_node(const std::vector<Vec3>& pts);
+    void split_leaf_node(
+        const std::vector<AABB<Ty>>& aabbs, Ty split_pos, SplitAxis split_axis,
+        AABB<Ty>&& lchild_aabb, AABB<Ty>&& rchild_aabb
+    );
     
     std::shared_ptr<KDPrimNode> lchild() {
         return _lchild;
@@ -88,18 +92,17 @@ public:
     }
 
     // get the orthogonal axis which span the maximum extent
-    SplitAxis max_extent_axis(const std::vector<AABB<Ty>>& pts) const;
+    SplitAxis max_extent_axis(const std::vector<AABB<Ty>>& aabbs, std::vector<Ty>& bins, std::vector<AxisBins<Ty>>& idx_bins) const;
 
-    template <typename Ptype1, typename Ptype2>
+    template <typename AABBType>
     auto add_child(
-        Ptype1&& mini, Ptype2&& maxi, std::vector<int>&& pt_idxs, 
+        AABBType&& aabb, std::vector<int>&& pt_idxs, 
         bool is_left = false, SplitAxis _split_axis = SplitAxis::NONE, Ty _split_pos = 0 
     ) {
         ProfilePhase _(Prof::TreeNodeAddChild);
         {
             auto new_child = std::make_shared<KDPrimNode>(
-                std::forward<Ptype1>(mini), 
-                std::forward<Ptype2>(maxi), 
+                std::forward<Ptype1>(aabb), 
                 std::move(pt_idxs), 
                 _split_axis, _split_pos
             );
@@ -182,6 +185,30 @@ protected:
     // indices will only be stored in the leaf nodes (for non-leaf nodes, this is a nullptr)
 };
 
+template <typename Ty>
+struct LinearKdNode {
+    LinearKdNode(): idx_base(0), idx_base(0), r_offset(0), all_offset(0) {
+        mini.resize({3});
+        maxi.resize({3});
+    }
+    LinearKdNode(const KDPrimNode<Ty> *const kd_node): 
+        idx_base(0), idx_base(0), r_offset(0), all_offset(0) 
+    {
+        mini.resize({3});
+        maxi.resize({3});
+        Ty *const min_ptr = mini.mutable_data(0), *const max_ptr = maxi.mutable_data(0);
+        for (int i = 0; i < 3; i++) {
+            min_ptr[i] = kd_node->aabb.mini(i);
+            max_ptr[i] = kd_node->aabb.maxi(i);
+        }
+    };       // linear nodes are initialized during DFS binary tree traversal
+
+    py::array_t<float> mini;
+    py::array_t<float> maxi;
+    int idx_base, idx_num;          // starting index of the linearized sub_idxs, number of indices
+    int r_offset, all_offset;       // offset to the rchild and the number of nodes in this (sub-)tree
+};
+
 /**
  * 
 */
@@ -199,15 +226,6 @@ protected:
  * (4) the primitives fall within a certain leave node can be extremely unbalanced, since we are splitting the tree
  * according to SAH: small primitive clusters will result in leaf nodes with more primitives and vice-versa
  * So we might need **dynamic SNode in Taichi lang**
- * 
- * tree construction logic:
- * 1. for the current node, find the maximum extent axis (of bounding boxes), denoted by T
- * 2. along that axis, find the splitting plane (among the defining planes of the AABBs)
- * via SAH
- * 3. since AABBs can exist in both the lchild and rchild of a node, std::partition seems to be... meaningless
- * So what we do here is simply recording the indices to the AABBs to the child nodes (and note that, only leaf
- * node keep track of these indices. The indices field (unique_ptr) will be nullified if the current node is not leaf
- * 4. recursively split the leaf node until stopping criteria are met
  * 
  * special note for ray intersection logic:
  * (1) Note that, before this is used in Taichi end, node linearization will be performed (pre-order)
